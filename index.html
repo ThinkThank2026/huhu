@@ -3,17 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>할 일</title>
+<title>체중 & 칼로리 트래커</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#FAFAF8;
+    --surface:#FFFFFF;
     --ink:#1C1C1A;
     --ink-soft:#9B9B94;
     --line:#E9E7E1;
     --accent:#2B6B63;
     --accent-soft:#E4EDEB;
+    --warn:#B5762A;
+    --warn-soft:#F7EDE0;
   }
 
   *{ box-sizing:border-box; }
@@ -24,386 +27,898 @@
     background:var(--bg);
     display:flex;
     justify-content:center;
-    padding:96px 20px;
+    padding:64px 16px 100px;
     font-family:'Inter', sans-serif;
     color:var(--ink);
     -webkit-font-smoothing:antialiased;
   }
 
-  .card{
-    width:100%;
-    max-width:440px;
-  }
-
-  header{
-    margin-bottom:28px;
-  }
-
-  .top-row{
-    display:flex;
-    justify-content:space-between;
-    align-items:baseline;
-    margin-bottom:18px;
-  }
+  .page{ width:100%; max-width:480px; }
 
   h1{
     font-family:'Instrument Serif', serif;
     font-style:italic;
     font-weight:400;
-    font-size:32px;
-    margin:0;
+    font-size:30px;
+    margin:0 0 4px;
     letter-spacing:-0.01em;
   }
-
   .today-date{
     font-size:12px;
     color:var(--ink-soft);
     font-weight:500;
+    margin-bottom:36px;
+    display:block;
   }
 
-  .progress-track{
-    height:2px;
-    background:var(--line);
-    border-radius:2px;
-    overflow:hidden;
-    margin-bottom:8px;
-  }
-  .progress-fill{
-    height:100%;
-    background:var(--accent);
-    width:0%;
-    transition: width 0.4s cubic-bezier(.4,0,.2,1);
+  section.card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:22px 20px;
+    margin-bottom:16px;
   }
 
-  .progress-label{
+  h2{
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:0.03em;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    margin:0 0 16px;
+  }
+  h3{
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink);
+    margin:18px 0 10px;
+  }
+
+  .field-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+  }
+  .field label{
     font-size:11.5px;
     color:var(--ink-soft);
-    display:flex;
-    justify-content:space-between;
-    letter-spacing:0.01em;
   }
-
-  ul.items{
-    list-style:none;
-    margin:32px 0 0;
-    padding:0;
+  .field select, .field input{
+    font-family:'Inter', sans-serif;
+    font-size:14px;
+    padding:9px 10px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:var(--bg);
+    color:var(--ink);
+    outline:none;
+    width:100%;
   }
+  .field select:focus, .field input:focus{ border-color:var(--accent); }
 
-  li.item{
-    display:flex;
-    align-items:flex-start;
-    gap:14px;
-    padding:14px 0;
-    border-bottom:1px solid var(--line);
-    animation: fade-up 0.3s ease;
-  }
-  li.item:last-child{ border-bottom:none; }
-
-  @keyframes fade-up{
-    from{ opacity:0; transform: translateY(4px); }
-    to{ opacity:1; transform: translateY(0); }
-  }
-
-  .circle{
-    flex:none;
-    width:20px;
-    height:20px;
-    margin-top:1px;
-    border-radius:50%;
-    border:1.5px solid #C9C7BF;
-    background:transparent;
+  .btn{
+    font-family:'Inter', sans-serif;
+    font-size:13px;
+    font-weight:600;
+    border:none;
+    border-radius:8px;
+    padding:10px 16px;
     cursor:pointer;
+    background:var(--ink);
+    color:#fff;
+    transition:opacity 0.15s ease, transform 0.1s ease;
+    white-space:nowrap;
+  }
+  .btn:hover{ opacity:0.85; }
+  .btn:active{ transform:scale(0.97); }
+  .btn.small{ padding:9px 14px; font-size:12.5px; }
+  .btn-row{ margin-top:14px; display:flex; gap:8px; }
+
+  .save-hint{
+    font-size:11px;
+    color:var(--accent);
+    margin-top:8px;
+    min-height:14px;
+  }
+
+  /* 목표 결과 */
+  .result-box{
+    margin-top:16px;
+    padding:16px;
+    background:var(--accent-soft);
+    border-radius:10px;
+  }
+  .result-box .big{
+    font-family:'Instrument Serif', serif;
+    font-size:34px;
+    font-style:italic;
+    color:var(--accent);
+    line-height:1;
+  }
+  .result-box .big span{
+    font-family:'Inter', sans-serif;
+    font-style:normal;
+    font-size:14px;
+    color:var(--ink-soft);
+    margin-left:4px;
+  }
+  .result-box .desc{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:8px;
+    line-height:1.6;
+  }
+  .result-box.warn{ background:var(--warn-soft); }
+  .result-box.warn .big{ color:var(--warn); }
+  .note-line{
+    font-size:11.5px;
+    color:var(--warn);
+    margin-top:6px;
+    display:flex;
+    gap:6px;
+  }
+
+  /* 오늘 기록 */
+  .date-row{
     display:flex;
     align-items:center;
-    justify-content:center;
-    padding:0;
-    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+    gap:10px;
+    margin-bottom:18px;
   }
-  .circle:hover{ border-color: var(--accent); transform:scale(1.06); }
-  .circle svg{
-    width:11px;
-    height:11px;
-    opacity:0;
-    transform:scale(0.5);
-    transition: opacity 0.15s ease, transform 0.15s ease;
-  }
-  .circle.checked{
-    background:var(--accent);
-    border-color:var(--accent);
-  }
-  .circle.checked svg{ opacity:1; transform:scale(1); }
-
-  .item-text{
+  .date-row input[type="date"]{
     flex:1;
-    font-size:14.5px;
-    line-height:1.5;
-    padding-top:1px;
-    word-break:break-word;
-    transition: color 0.15s ease;
-  }
-  .item.done .item-text{
-    color:var(--ink-soft);
-    text-decoration: line-through;
-    text-decoration-color:#C9C7BF;
   }
 
-  .remove-btn{
-    flex:none;
+  .add-row-inline{
+    display:flex;
+    gap:8px;
+    align-items:flex-end;
+  }
+  .add-row-inline .field{ flex:1; }
+  .add-row-inline .field.narrow{ flex:0 0 96px; }
+
+  .hint-small{
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:6px;
+  }
+
+  ul.entry-list{
+    list-style:none;
+    margin:12px 0 0;
+    padding:0;
+  }
+  li.entry{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:9px 0;
+    border-bottom:1px solid var(--line);
+    font-size:13px;
+  }
+  li.entry:last-child{ border-bottom:none; }
+  li.entry .entry-main{ flex:1; }
+  li.entry .entry-name{ font-weight:500; }
+  li.entry .entry-sub{ color:var(--ink-soft); font-size:11.5px; }
+  li.entry .entry-kcal{ color:var(--ink-soft); font-size:12.5px; white-space:nowrap; }
+  .del-entry{
     background:none;
     border:none;
     color:var(--ink-soft);
-    font-size:18px;
-    line-height:1;
     cursor:pointer;
-    opacity:0;
+    font-size:15px;
     padding:0 2px;
-    transition:opacity 0.15s ease, color 0.15s ease;
   }
-  .item:hover .remove-btn{ opacity:1; }
-  .remove-btn:hover{ color:#C0453C; }
+  .del-entry:hover{ color:#C0453C; }
 
-  .item.removing{
-    animation: collapse 0.25s forwards ease-in;
-  }
-  @keyframes collapse{
-    to{ opacity:0; transform: translateX(6px); }
-  }
-
-  .add-row{
-    display:flex;
-    align-items:center;
-    gap:12px;
-    padding:16px 0 6px;
-  }
-  .add-icon{
-    flex:none;
-    width:20px;
-    height:20px;
-    border-radius:50%;
-    border:1.5px dashed #C9C7BF;
-    display:flex;
-    align-items:center;
-    justify-content:center;
+  .empty-hint{
+    font-size:12px;
     color:var(--ink-soft);
-    font-size:13px;
+    padding:8px 0 0;
   }
-  .add-row input{
-    flex:1;
+
+  .summary-box{
+    margin-top:18px;
+    padding:14px 16px;
+    background:var(--bg);
+    border:1px dashed var(--line);
+    border-radius:10px;
+    font-size:12.5px;
+    line-height:1.9;
+  }
+  .summary-box b{ color:var(--ink); }
+  .summary-box .rem-ok{ color:var(--accent); font-weight:600; }
+  .summary-box .rem-over{ color:var(--warn); font-weight:600; }
+
+  hr.divider{
     border:none;
-    background:transparent;
-    font-family:'Inter', sans-serif;
-    font-size:14.5px;
-    color:var(--ink);
-    outline:none;
-    padding:2px 0;
-  }
-  .add-row input::placeholder{ color:var(--ink-soft); }
-
-  .empty-state{
-    padding:36px 0;
-    text-align:center;
-    color:var(--ink-soft);
-    font-size:13.5px;
+    border-top:1px solid var(--line);
+    margin:20px 0;
   }
 
-  .status-msg{
-    min-height:16px;
-    font-size:11.5px;
-    color:#C0453C;
+  /* 일별 히스토리 테이블 */
+  table.log-table{
+    width:100%;
+    border-collapse:collapse;
     margin-top:14px;
+    font-size:12.5px;
+  }
+  table.log-table th{
+    text-align:left;
+    font-weight:500;
+    color:var(--ink-soft);
+    font-size:11px;
+    padding:6px 4px;
+    border-bottom:1px solid var(--line);
+  }
+  table.log-table td{
+    padding:8px 4px;
+    border-bottom:1px solid var(--line);
+  }
+  table.log-table tr:last-child td{ border-bottom:none; }
+  .net-pos{ color:var(--warn); }
+  .net-neg{ color:var(--accent); }
+
+  /* 차트 */
+  .chart-wrap svg{ width:100%; height:auto; overflow:visible; }
+  .chart-empty{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    text-align:center;
+    padding:30px 0;
+  }
+  .chart-legend{
+    display:flex;
+    justify-content:space-between;
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:6px;
+  }
+
+  .disclaimer{
+    font-size:10.5px;
+    color:var(--ink-soft);
+    text-align:center;
+    line-height:1.6;
+    margin-top:24px;
   }
 </style>
 </head>
 <body>
 
-<div class="card">
-  <header>
-    <div class="top-row">
-      <h1>할 일</h1>
-      <span class="today-date" id="today"></span>
-    </div>
-    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
-    <div class="progress-label">
-      <span id="progressText">0 / 0 완료</span>
-      <span id="progressPercent">0%</span>
-    </div>
-  </header>
+<div class="page">
+  <h1>체중 & 칼로리 트래커</h1>
+  <span class="today-date" id="todayDate"></span>
 
-  <ul class="items" id="itemsList"></ul>
-  <div class="empty-state" id="emptyState" style="display:none;">아직 할 일이 없어요. 아래에 적어보세요.</div>
+  <!-- 프로필 -->
+  <section class="card">
+    <h2>내 프로필</h2>
+    <div class="field-grid">
+      <div class="field">
+        <label>성별</label>
+        <select id="p-gender">
+          <option value="male">남성</option>
+          <option value="female">여성</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>나이</label>
+        <input id="p-age" type="number" min="10" max="100" placeholder="예: 32">
+      </div>
+      <div class="field">
+        <label>키 (cm)</label>
+        <input id="p-height" type="number" min="100" max="250" step="0.1" placeholder="예: 170">
+      </div>
+      <div class="field">
+        <label>현재 몸무게 (kg)</label>
+        <input id="p-weight" type="number" min="20" max="300" step="0.1" placeholder="예: 65">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="saveProfileBtn">프로필 저장</button>
+    </div>
+    <div class="save-hint" id="profileSaveHint"></div>
+  </section>
 
-  <div class="add-row">
-    <span class="add-icon">+</span>
-    <input id="taskInput" type="text" placeholder="할 일 추가하고 Enter" maxlength="120">
+  <!-- 목표 -->
+  <section class="card">
+    <h2>목표</h2>
+    <div class="field-grid">
+      <div class="field">
+        <label>희망 몸무게 (kg)</label>
+        <input id="g-target-weight" type="number" min="20" max="300" step="0.1" placeholder="예: 60">
+      </div>
+      <div class="field">
+        <label>목표 월</label>
+        <input id="g-target-month" type="month">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="saveGoalBtn">목표 저장 & 계산</button>
+    </div>
+    <div id="goalResult"></div>
+  </section>
+
+  <!-- 오늘 기록 -->
+  <section class="card">
+    <h2>기록</h2>
+
+    <div class="date-row">
+      <div class="field" style="flex:1;">
+        <label>기록할 날짜</label>
+        <input id="l-date" type="date">
+      </div>
+      <div class="field" style="flex:1;">
+        <label>이 날짜 몸무게 (kg, 선택)</label>
+        <input id="l-weight" type="number" min="20" max="300" step="0.1" placeholder="측정했다면 입력">
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:0;">
+      <button class="btn small secondary-btn" id="saveWeightBtn" style="background:transparent;color:var(--ink-soft);border:1px solid var(--line);">몸무게만 저장</button>
+    </div>
+    <div class="save-hint" id="weightSaveHint"></div>
+
+    <hr class="divider">
+
+    <h3>🍽 식사 추가</h3>
+    <div class="add-row-inline">
+      <div class="field">
+        <label>음식 이름</label>
+        <input id="m-food" type="text" placeholder="예: 닭가슴살 샐러드" maxlength="60">
+      </div>
+      <div class="field narrow">
+        <label>칼로리</label>
+        <input id="m-calories" type="number" min="0" step="1" placeholder="kcal">
+      </div>
+      <button class="btn small" id="addMealBtn">추가</button>
+    </div>
+    <ul class="entry-list" id="mealList"></ul>
+    <div class="empty-hint" id="mealEmptyHint">이 날짜에 추가된 식사가 없어요.</div>
+
+    <h3>🏃 운동 추가</h3>
+    <div class="add-row-inline">
+      <div class="field">
+        <label>운동 이름 (선택)</label>
+        <input id="e-name" type="text" placeholder="예: 러닝" maxlength="60">
+      </div>
+      <div class="field narrow">
+        <label>시간(분)</label>
+        <input id="e-minutes" type="number" min="0" step="1" placeholder="분">
+      </div>
+      <button class="btn small" id="addExerciseBtn">추가</button>
+    </div>
+    <div class="hint-small" id="exerciseHint">추정 소모 칼로리: 0kcal (분당 약 7kcal 기준 추정치)</div>
+    <ul class="entry-list" id="exerciseList"></ul>
+    <div class="empty-hint" id="exerciseEmptyHint">이 날짜에 추가된 운동이 없어요.</div>
+
+    <div class="summary-box" id="summaryBox"></div>
+
+    <hr class="divider">
+    <h3>최근 기록 (일별 요약)</h3>
+    <table class="log-table" id="logTable" style="display:none;">
+      <thead>
+        <tr><th>날짜</th><th>섭취</th><th>운동소모</th><th>순 칼로리</th><th>체중</th></tr>
+      </thead>
+      <tbody id="logTableBody"></tbody>
+    </table>
+    <div class="empty-hint" id="logEmptyHint">아직 기록이 없어요.</div>
+  </section>
+
+  <!-- 몸무게 변화 -->
+  <section class="card">
+    <h2>몸무게 변화</h2>
+    <div class="chart-wrap" id="chartWrap">
+      <div class="chart-empty">몸무게를 기록하면 변화 그래프가 여기 나타나요.</div>
+    </div>
+  </section>
+
+  <div class="disclaimer">
+    이 앱의 계산은 일반적인 공식(Mifflin-St Jeor)에 기반한 참고용 추정치이며 의학적 조언이 아니에요.<br>
+    건강 상태나 큰 폭의 체중 변화 목표가 있다면 의료 전문가와 상담해 주세요.
   </div>
-
-  <div class="status-msg" id="statusMsg"></div>
 </div>
 
 <script>
-  const STORAGE_KEY = 'receipt-tasks-v1';
-  let tasks = [];
-  let storageMode = 'checking'; // 'claude' | 'local' | 'memory'
+  const STORAGE_KEY = 'weight-tracker-v2';
+  const OLD_STORAGE_KEY = 'weight-tracker-v1';
+  let storageMode = 'checking';
 
+  // entries: [{id, date, type:'meal'|'exercise'|'weight', name, calories, minutes, burned, weight}]
+  let data = {
+    profile: { gender:'male', age:null, height:null, weight:null },
+    goal: { targetWeight:null, targetMonth:null, recommendedCalories:null },
+    entries: []
+  };
+
+  const KCAL_PER_MIN = 7; // 중강도 운동 기준 대략적인 추정치
+
+  // ---------- 저장소 ----------
   async function detectStorageMode(){
-    // 1) Claude.ai 아티팩트 환경의 storage API 시도
     try{
       if(window.storage && typeof window.storage.set === 'function'){
-        const testKey = '__storage_test__';
-        const result = await window.storage.set(testKey, '1', false);
-        if(result){
-          storageMode = 'claude';
-          return;
-        }
+        const result = await window.storage.set('__storage_test__', '1', false);
+        if(result){ storageMode = 'claude'; return; }
       }
-    }catch(e){ /* fall through */ }
-
-    // 2) 일반 브라우저의 localStorage 시도 (다운로드해서 직접 연 경우)
+    }catch(e){}
     try{
-      localStorage.setItem('__storage_test__', '1');
+      localStorage.setItem('__storage_test__','1');
       localStorage.removeItem('__storage_test__');
-      storageMode = 'local';
-      return;
-    }catch(e){ /* fall through */ }
-
-    // 3) 둘 다 안되면 메모리에만 저장 (새로고침 시 사라짐)
+      storageMode = 'local'; return;
+    }catch(e){}
     storageMode = 'memory';
   }
 
-  const itemsList = document.getElementById('itemsList');
-  const emptyState = document.getElementById('emptyState');
-  const progressFill = document.getElementById('progressFill');
-  const progressText = document.getElementById('progressText');
-  const progressPercent = document.getElementById('progressPercent');
-  const statusMsg = document.getElementById('statusMsg');
-  const taskInput = document.getElementById('taskInput');
-
-  const CHECK_SVG = '<svg viewBox="0 0 12 12" fill="none"><path d="M2 6.2L4.6 9L10 3" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
-  function setStatus(msg){
-    statusMsg.textContent = msg || '';
-    if(msg){ setTimeout(() => { if(statusMsg.textContent === msg) statusMsg.textContent = ''; }, 2500); }
+  function migrateOldData(old){
+    // 이전 버전(하루 1건) 데이터를 새 구조(여러 건)로 변환
+    const entries = [];
+    (old.logs || []).forEach(log => {
+      if(log.calories){
+        entries.push({ id:'m_'+log.date, date:log.date, type:'meal', name:'식사', calories:log.calories });
+      }
+      if(log.exerciseMin){
+        entries.push({ id:'e_'+log.date, date:log.date, type:'exercise', name:'운동', minutes:log.exerciseMin, burned:log.burned || Math.round(log.exerciseMin*KCAL_PER_MIN) });
+      }
+      if(log.weight){
+        entries.push({ id:'w_'+log.date, date:log.date, type:'weight', weight:log.weight });
+      }
+    });
+    return { profile: old.profile, goal: old.goal, entries };
   }
 
-  function renderDate(){
-    const now = new Date();
-    document.getElementById('today').textContent = now.toLocaleDateString('ko-KR', { month:'long', day:'numeric', weekday:'short' });
-  }
-
-  function render(){
-    itemsList.innerHTML = '';
-    if(tasks.length === 0){
-      emptyState.style.display = 'block';
-    } else {
-      emptyState.style.display = 'none';
-      tasks.forEach(task => {
-        const li = document.createElement('li');
-        li.className = 'item' + (task.done ? ' done' : '');
-        li.dataset.id = task.id;
-
-        const circle = document.createElement('button');
-        circle.className = 'circle' + (task.done ? ' checked' : '');
-        circle.setAttribute('aria-label', task.done ? '완료 취소' : '완료 표시');
-        circle.innerHTML = CHECK_SVG;
-        circle.onclick = () => toggleTask(task.id);
-
-        const text = document.createElement('span');
-        text.className = 'item-text';
-        text.textContent = task.text;
-
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'remove-btn';
-        removeBtn.setAttribute('aria-label', '삭제');
-        removeBtn.textContent = '×';
-        removeBtn.onclick = () => removeTask(task.id, li);
-
-        li.append(circle, text, removeBtn);
-        itemsList.appendChild(li);
-      });
-    }
-
-    const total = tasks.length;
-    const done = tasks.filter(t => t.done).length;
-    const pct = total === 0 ? 0 : Math.round((done/total)*100);
-    progressFill.style.width = pct + '%';
-    progressText.textContent = done + ' / ' + total + ' 완료';
-    progressPercent.textContent = pct + '%';
-  }
-
-  async function loadTasks(){
+  async function loadData(){
     await detectStorageMode();
     try{
       if(storageMode === 'claude'){
         const result = await window.storage.get(STORAGE_KEY, false);
-        tasks = result ? JSON.parse(result.value) : [];
+        if(result){ data = JSON.parse(result.value); return; }
+        const oldResult = await window.storage.get(OLD_STORAGE_KEY, false).catch(()=>null);
+        if(oldResult){ data = migrateOldData(JSON.parse(oldResult.value)); }
       } else if(storageMode === 'local'){
         const raw = localStorage.getItem(STORAGE_KEY);
-        tasks = raw ? JSON.parse(raw) : [];
-      } else {
-        tasks = [];
-        setStatus('이 브라우저에서는 저장이 지원되지 않아, 새로고침하면 목록이 사라져요.');
+        if(raw){ data = JSON.parse(raw); return; }
+        const oldRaw = localStorage.getItem(OLD_STORAGE_KEY);
+        if(oldRaw){ data = migrateOldData(JSON.parse(oldRaw)); }
       }
-    }catch(e){
-      tasks = [];
-    }
-    render();
+    }catch(e){ /* 기본값 유지 */ }
   }
 
-  async function saveTasks(){
+  async function saveData(hintEl){
     try{
       if(storageMode === 'claude'){
-        const result = await window.storage.set(STORAGE_KEY, JSON.stringify(tasks), false);
-        if(!result){ setStatus('저장하지 못했어요. 다시 시도해 주세요.'); }
+        const result = await window.storage.set(STORAGE_KEY, JSON.stringify(data), false);
+        if(!result){ if(hintEl) showHint(hintEl, '저장하지 못했어요.', true); return; }
       } else if(storageMode === 'local'){
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       }
-      // memory 모드에서는 저장 시도 자체를 하지 않음 (이미 안내함)
+      if(hintEl) showHint(hintEl, '저장됐어요.', false);
     }catch(e){
-      if(storageMode !== 'memory'){ setStatus('저장하지 못했어요. 다시 시도해 주세요.'); }
+      if(hintEl) showHint(hintEl, '저장하지 못했어요.', true);
     }
   }
 
-  function addTask(){
-    const value = taskInput.value.trim();
-    if(!value) return;
-    tasks.push({
-      id: 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-      text: value,
-      done: false,
-      createdAt: Date.now()
-    });
-    taskInput.value = '';
-    render();
-    saveTasks();
+  function showHint(el, msg, isError){
+    el.textContent = msg;
+    el.style.color = isError ? '#C0453C' : 'var(--accent)';
+    setTimeout(() => { if(el.textContent === msg) el.textContent = ''; }, 2200);
   }
 
-  function toggleTask(id){
-    const t = tasks.find(t => t.id === id);
-    if(t){
-      t.done = !t.done;
-      render();
-      saveTasks();
-    }
+  // ---------- 유틸 ----------
+  function todayStr(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function newId(prefix){ return prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+  function calcBMR(gender, weight, height, age){
+    const base = 10*weight + 6.25*height - 5*age;
+    return gender === 'male' ? base + 5 : base - 161;
+  }
+  function currentDate(){ return dateEl.value || todayStr(); }
+
+  // ---------- 프로필 ----------
+  const genderEl = document.getElementById('p-gender');
+  const ageEl = document.getElementById('p-age');
+  const heightEl = document.getElementById('p-height');
+  const weightEl = document.getElementById('p-weight');
+
+  function fillProfileForm(){
+    genderEl.value = data.profile.gender || 'male';
+    ageEl.value = data.profile.age ?? '';
+    heightEl.value = data.profile.height ?? '';
+    weightEl.value = data.profile.weight ?? '';
   }
 
-  function removeTask(id, li){
-    li.classList.add('removing');
-    setTimeout(() => {
-      tasks = tasks.filter(t => t.id !== id);
-      render();
-      saveTasks();
-    }, 220);
-  }
-
-  let isComposing = false;
-  taskInput.addEventListener('compositionstart', () => { isComposing = true; });
-  taskInput.addEventListener('compositionend', () => { isComposing = false; });
-  taskInput.addEventListener('keydown', (e) => {
-    if(e.key === 'Enter' && !isComposing && e.keyCode !== 229) addTask();
+  document.getElementById('saveProfileBtn').addEventListener('click', () => {
+    data.profile = {
+      gender: genderEl.value,
+      age: parseFloat(ageEl.value) || null,
+      height: parseFloat(heightEl.value) || null,
+      weight: parseFloat(weightEl.value) || null
+    };
+    saveData(document.getElementById('profileSaveHint'));
+    renderGoalResult();
+    renderChart();
   });
 
-  renderDate();
-  loadTasks();
+  // ---------- 목표 ----------
+  const targetWeightEl = document.getElementById('g-target-weight');
+  const targetMonthEl = document.getElementById('g-target-month');
+  const goalResultEl = document.getElementById('goalResult');
+
+  function fillGoalForm(){
+    targetWeightEl.value = data.goal.targetWeight ?? '';
+    targetMonthEl.value = data.goal.targetMonth ?? '';
+  }
+
+  document.getElementById('saveGoalBtn').addEventListener('click', () => {
+    data.goal.targetWeight = parseFloat(targetWeightEl.value) || null;
+    data.goal.targetMonth = targetMonthEl.value || null;
+    saveData(null);
+    renderGoalResult();
+    renderSummary();
+  });
+
+  function renderGoalResult(){
+    const { gender, age, height, weight } = data.profile;
+    const { targetWeight, targetMonth } = data.goal;
+
+    if(!gender || !age || !height || !weight){
+      goalResultEl.innerHTML = '<div class="note-line">먼저 프로필(나이/키/몸무게)을 저장해 주세요.</div>';
+      data.goal.recommendedCalories = null;
+      return;
+    }
+    if(!targetWeight || !targetMonth){
+      goalResultEl.innerHTML = '';
+      data.goal.recommendedCalories = null;
+      return;
+    }
+
+    const bmr = calcBMR(gender, weight, height, age);
+    const tdee = bmr * 1.2;
+
+    const now = new Date();
+    const [ty, tm] = targetMonth.split('-').map(Number);
+    const targetEndDate = new Date(ty, tm, 0);
+    const msPerDay = 1000*60*60*24;
+    let daysLeft = Math.round((targetEndDate - now) / msPerDay);
+
+    if(daysLeft <= 0){
+      goalResultEl.innerHTML = '<div class="note-line">⚠ 목표 월이 이미 지났거나 이번 달이에요. 목표 월을 다시 선택해 주세요.</div>';
+      data.goal.recommendedCalories = null;
+      return;
+    }
+
+    const weightDiff = targetWeight - weight;
+    const totalKcal = weightDiff * 7700;
+    const rawDailyAdjustment = totalKcal / daysLeft;
+    const rawTarget = Math.round(tdee + rawDailyAdjustment); // 안전 상한/하한 미적용 참고값
+
+    let dailyAdjustment = rawDailyAdjustment;
+    let clampNote = '';
+    const LOSS_CAP = -1000;
+    const GAIN_CAP = 500;
+
+    if(dailyAdjustment < LOSS_CAP){
+      dailyAdjustment = LOSS_CAP;
+      clampNote = '건강한 감량 속도(주당 최대 약 1kg)에 맞춰 조정했어요. 같은 기간에 도달하려면 목표를 조정해 보세요.';
+    } else if(dailyAdjustment > GAIN_CAP){
+      dailyAdjustment = GAIN_CAP;
+      clampNote = '건강한 증량 속도(주당 최대 약 0.5kg)에 맞춰 조정했어요. 같은 기간에 도달하려면 목표를 조정해 보세요.';
+    }
+
+    let recommended = tdee + dailyAdjustment;
+    const floor = gender === 'male' ? 1500 : 1200;
+    let floorNote = '';
+    if(recommended < floor){
+      recommended = floor;
+      floorNote = `안전을 위해 최소 권장 섭취량(${floor}kcal)으로 조정했어요.`;
+    }
+    recommended = Math.round(recommended);
+
+    const isWarn = !!clampNote || !!floorNote;
+    const rawDiffersFromRecommended = rawTarget !== recommended;
+    const rawBelowFloor = rawTarget < floor;
+
+    goalResultEl.innerHTML = `
+      <div class="result-box ${isWarn ? 'warn' : ''}">
+        <div class="big">${recommended}<span>kcal / 일</span></div>
+        <div class="desc">
+          기초대사량 기준 TDEE 약 ${Math.round(tdee)}kcal에, 목표 달성을 위한 하루 ${dailyAdjustment >= 0 ? '+' : ''}${Math.round(dailyAdjustment)}kcal 조정을 반영한 값이에요.
+          (남은 기간: 약 ${daysLeft}일)
+        </div>
+        ${clampNote ? `<div class="note-line">⚠ ${clampNote}</div>` : ''}
+        ${floorNote ? `<div class="note-line">⚠ ${floorNote}</div>` : ''}
+        ${rawDiffersFromRecommended ? `
+          <div class="desc" style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--line);">
+            속도 제한 없이 순수 계산만 하면 <b>${rawTarget}kcal/일</b>이에요.
+            ${rawBelowFloor ? `이는 일반적인 최소 권장 섭취량(${floor}kcal)보다 낮아 영양 결핍, 근손실, 대사 저하 등의 위험이 있어 실제 섭취 목표로는 권장하지 않아요.` : '건강한 속도 기준보다 빠른 목표라 참고용으로만 봐주세요.'}
+          </div>
+        ` : ''}
+      </div>
+    `;
+    data.goal.recommendedCalories = recommended;
+  }
+
+  // ---------- 날짜 & 몸무게 ----------
+  const dateEl = document.getElementById('l-date');
+  const logWeightEl = document.getElementById('l-weight');
+
+  dateEl.addEventListener('change', () => {
+    loadWeightForDate();
+    renderMealList();
+    renderExerciseList();
+    renderSummary();
+  });
+
+  function loadWeightForDate(){
+    const entry = data.entries.find(e => e.type === 'weight' && e.date === currentDate());
+    logWeightEl.value = entry ? entry.weight : '';
+  }
+
+  document.getElementById('saveWeightBtn').addEventListener('click', () => {
+    const date = currentDate();
+    const w = parseFloat(logWeightEl.value);
+    data.entries = data.entries.filter(e => !(e.type === 'weight' && e.date === date));
+    if(w){
+      data.entries.push({ id:newId('w'), date, type:'weight', weight:w });
+      if(date === todayStr()){
+        data.profile.weight = w;
+        fillProfileForm();
+        renderGoalResult();
+      }
+    }
+    saveData(document.getElementById('weightSaveHint'));
+    renderLogTable();
+    renderChart();
+    renderSummary();
+  });
+
+  // ---------- 식사 ----------
+  const foodNameEl = document.getElementById('m-food');
+  const mealCaloriesEl = document.getElementById('m-calories');
+  const mealListEl = document.getElementById('mealList');
+  const mealEmptyHintEl = document.getElementById('mealEmptyHint');
+
+  document.getElementById('addMealBtn').addEventListener('click', () => {
+    const name = foodNameEl.value.trim();
+    const calories = parseFloat(mealCaloriesEl.value);
+    if(!name || (!calories && calories !== 0)) return;
+
+    data.entries.push({ id:newId('m'), date:currentDate(), type:'meal', name, calories });
+    foodNameEl.value = '';
+    mealCaloriesEl.value = '';
+    foodNameEl.focus();
+
+    saveData(null);
+    renderMealList();
+    renderLogTable();
+    renderSummary();
+  });
+  [foodNameEl, mealCaloriesEl].forEach(el => {
+    el.addEventListener('keydown', (e) => { if(e.key === 'Enter') document.getElementById('addMealBtn').click(); });
+  });
+
+  function renderMealList(){
+    const meals = data.entries.filter(e => e.type === 'meal' && e.date === currentDate());
+    if(meals.length === 0){
+      mealListEl.innerHTML = '';
+      mealEmptyHintEl.style.display = 'block';
+      return;
+    }
+    mealEmptyHintEl.style.display = 'none';
+    mealListEl.innerHTML = meals.map(m => `
+      <li class="entry">
+        <div class="entry-main">
+          <div class="entry-name">${escapeHtml(m.name)}</div>
+        </div>
+        <div class="entry-kcal">${m.calories}kcal</div>
+        <button class="del-entry" data-id="${m.id}" aria-label="삭제">×</button>
+      </li>
+    `).join('');
+    mealListEl.querySelectorAll('.del-entry').forEach(btn => {
+      btn.addEventListener('click', () => {
+        data.entries = data.entries.filter(e => e.id !== btn.dataset.id);
+        saveData(null);
+        renderMealList();
+        renderLogTable();
+        renderSummary();
+      });
+    });
+  }
+
+  // ---------- 운동 ----------
+  const exerciseNameEl = document.getElementById('e-name');
+  const exerciseMinEl = document.getElementById('e-minutes');
+  const exerciseHintEl = document.getElementById('exerciseHint');
+  const exerciseListEl = document.getElementById('exerciseList');
+  const exerciseEmptyHintEl = document.getElementById('exerciseEmptyHint');
+
+  function updateExerciseHint(){
+    const min = parseFloat(exerciseMinEl.value) || 0;
+    const burned = Math.round(min * KCAL_PER_MIN);
+    exerciseHintEl.textContent = `추정 소모 칼로리: ${burned}kcal (분당 약 ${KCAL_PER_MIN}kcal 기준 추정치)`;
+    return burned;
+  }
+  exerciseMinEl.addEventListener('input', updateExerciseHint);
+
+  document.getElementById('addExerciseBtn').addEventListener('click', () => {
+    const minutes = parseFloat(exerciseMinEl.value);
+    if(!minutes) return;
+    const name = exerciseNameEl.value.trim() || '운동';
+    const burned = Math.round(minutes * KCAL_PER_MIN);
+
+    data.entries.push({ id:newId('e'), date:currentDate(), type:'exercise', name, minutes, burned });
+    exerciseNameEl.value = '';
+    exerciseMinEl.value = '';
+    updateExerciseHint();
+
+    saveData(null);
+    renderExerciseList();
+    renderLogTable();
+    renderSummary();
+  });
+  [exerciseNameEl, exerciseMinEl].forEach(el => {
+    el.addEventListener('keydown', (e) => { if(e.key === 'Enter') document.getElementById('addExerciseBtn').click(); });
+  });
+
+  function renderExerciseList(){
+    const exs = data.entries.filter(e => e.type === 'exercise' && e.date === currentDate());
+    if(exs.length === 0){
+      exerciseListEl.innerHTML = '';
+      exerciseEmptyHintEl.style.display = 'block';
+      return;
+    }
+    exerciseEmptyHintEl.style.display = 'none';
+    exerciseListEl.innerHTML = exs.map(x => `
+      <li class="entry">
+        <div class="entry-main">
+          <div class="entry-name">${escapeHtml(x.name)}</div>
+          <div class="entry-sub">${x.minutes}분</div>
+        </div>
+        <div class="entry-kcal">-${x.burned}kcal</div>
+        <button class="del-entry" data-id="${x.id}" aria-label="삭제">×</button>
+      </li>
+    `).join('');
+    exerciseListEl.querySelectorAll('.del-entry').forEach(btn => {
+      btn.addEventListener('click', () => {
+        data.entries = data.entries.filter(e => e.id !== btn.dataset.id);
+        saveData(null);
+        renderExerciseList();
+        renderLogTable();
+        renderSummary();
+      });
+    });
+  }
+
+  // ---------- 날짜별 요약 ----------
+  function getDayTotals(date){
+    const dayEntries = data.entries.filter(e => e.date === date);
+    const calories = dayEntries.filter(e => e.type === 'meal').reduce((s,e) => s + e.calories, 0);
+    const burned = dayEntries.filter(e => e.type === 'exercise').reduce((s,e) => s + e.burned, 0);
+    const weightEntry = dayEntries.find(e => e.type === 'weight');
+    return { calories, burned, net: calories - burned, weight: weightEntry ? weightEntry.weight : null };
+  }
+
+  function renderSummary(){
+    const date = currentDate();
+    const { calories, burned } = getDayTotals(date);
+    const box = document.getElementById('summaryBox');
+
+    let allowanceLine = '';
+    if(data.goal.recommendedCalories){
+      const allowance = data.goal.recommendedCalories + burned;
+      const remaining = allowance - calories;
+      const remClass = remaining >= 0 ? 'rem-ok' : 'rem-over';
+      allowanceLine = `오늘 목표 섭취량: <b>${allowance}kcal</b> (권장 ${data.goal.recommendedCalories} + 운동 소모 ${burned})<br>
+        남은 섭취 가능량: <span class="${remClass}">${remaining >= 0 ? remaining + 'kcal 남음' : Math.abs(remaining) + 'kcal 초과'}</span>`;
+    }
+
+    box.innerHTML = `
+      총 섭취: <b>${calories}kcal</b> · 운동 소모: <b>${burned}kcal</b><br>
+      ${allowanceLine}
+    `;
+  }
+
+  // ---------- 일별 히스토리 테이블 ----------
+  function renderLogTable(){
+    const tbody = document.getElementById('logTableBody');
+    const table = document.getElementById('logTable');
+    const emptyHint = document.getElementById('logEmptyHint');
+
+    const dates = [...new Set(data.entries.map(e => e.date))].sort((a,b) => b.localeCompare(a)).slice(0, 14);
+
+    if(dates.length === 0){
+      table.style.display = 'none';
+      emptyHint.style.display = 'block';
+      return;
+    }
+    table.style.display = 'table';
+    emptyHint.style.display = 'none';
+
+    tbody.innerHTML = dates.map(date => {
+      const { calories, burned, net, weight } = getDayTotals(date);
+      const netClass = net >= 0 ? 'net-pos' : 'net-neg';
+      return `
+        <tr>
+          <td>${date.slice(5)}</td>
+          <td>${calories}</td>
+          <td>${burned}</td>
+          <td class="${netClass}">${net >= 0 ? '+' : ''}${net}</td>
+          <td>${weight ? weight + 'kg' : '—'}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // ---------- 차트 ----------
+  function renderChart(){
+    const wrap = document.getElementById('chartWrap');
+    const points = data.entries
+      .filter(e => e.type === 'weight')
+      .map(e => ({ date: e.date, weight: e.weight }))
+      .sort((a,b) => a.date.localeCompare(b.date));
+
+    if(points.length < 2){
+      wrap.innerHTML = '<div class="chart-empty">몸무게를 2회 이상 기록하면 변화 그래프가 나타나요.</div>';
+      return;
+    }
+
+    const W = 440, H = 160, PAD = 24;
+    const weights = points.map(p => p.weight);
+    const minW = Math.min(...weights) - 0.5;
+    const maxW = Math.max(...weights) + 0.5;
+    const range = maxW - minW || 1;
+
+    const coords = points.map((p, i) => {
+      const x = PAD + (i / (points.length - 1)) * (W - PAD*2);
+      const y = H - PAD - ((p.weight - minW) / range) * (H - PAD*2);
+      return [x, y];
+    });
+
+    const pathD = coords.map((c, i) => (i === 0 ? 'M' : 'L') + c[0].toFixed(1) + ',' + c[1].toFixed(1)).join(' ');
+    const dots = coords.map(c => `<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="3" fill="#2B6B63" />`).join('');
+
+    wrap.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+        <path d="${pathD}" fill="none" stroke="#2B6B63" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+        ${dots}
+      </svg>
+      <div class="chart-legend">
+        <span>${points[0].date}</span>
+        <span>${points[points.length-1].date}</span>
+      </div>
+    `;
+  }
+
+  // ---------- 기타 ----------
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ---------- 초기화 ----------
+  async function init(){
+    dateEl.value = todayStr();
+    document.getElementById('todayDate').textContent = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
+
+    await loadData();
+    fillProfileForm();
+    fillGoalForm();
+    loadWeightForDate();
+    renderGoalResult();
+    renderMealList();
+    renderExerciseList();
+    renderSummary();
+    renderLogTable();
+    renderChart();
+  }
+
+  init();
 </script>
 
 </body>

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>할 일</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAFAF8;
+    --ink:#1C1C1A;
+    --ink-soft:#9B9B94;
+    --line:#E9E7E1;
+    --accent:#2B6B63;
+    --accent-soft:#E4EDEB;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background:var(--bg);
+    display:flex;
+    justify-content:center;
+    padding:96px 20px;
+    font-family:'Inter', sans-serif;
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .card{
+    width:100%;
+    max-width:440px;
+  }
+
+  header{
+    margin-bottom:28px;
+  }
+
+  .top-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:18px;
+  }
+
+  h1{
+    font-family:'Instrument Serif', serif;
+    font-style:italic;
+    font-weight:400;
+    font-size:32px;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+
+  .today-date{
+    font-size:12px;
+    color:var(--ink-soft);
+    font-weight:500;
+  }
+
+  .progress-track{
+    height:2px;
+    background:var(--line);
+    border-radius:2px;
+    overflow:hidden;
+    margin-bottom:8px;
+  }
+  .progress-fill{
+    height:100%;
+    background:var(--accent);
+    width:0%;
+    transition: width 0.4s cubic-bezier(.4,0,.2,1);
+  }
+
+  .progress-label{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    display:flex;
+    justify-content:space-between;
+    letter-spacing:0.01em;
+  }
+
+  ul.items{
+    list-style:none;
+    margin:32px 0 0;
+    padding:0;
+  }
+
+  li.item{
+    display:flex;
+    align-items:flex-start;
+    gap:14px;
+    padding:14px 0;
+    border-bottom:1px solid var(--line);
+    animation: fade-up 0.3s ease;
+  }
+  li.item:last-child{ border-bottom:none; }
+
+  @keyframes fade-up{
+    from{ opacity:0; transform: translateY(4px); }
+    to{ opacity:1; transform: translateY(0); }
+  }
+
+  .circle{
+    flex:none;
+    width:20px;
+    height:20px;
+    margin-top:1px;
+    border-radius:50%;
+    border:1.5px solid #C9C7BF;
+    background:transparent;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+  .circle:hover{ border-color: var(--accent); transform:scale(1.06); }
+  .circle svg{
+    width:11px;
+    height:11px;
+    opacity:0;
+    transform:scale(0.5);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  .circle.checked{
+    background:var(--accent);
+    border-color:var(--accent);
+  }
+  .circle.checked svg{ opacity:1; transform:scale(1); }
+
+  .item-text{
+    flex:1;
+    font-size:14.5px;
+    line-height:1.5;
+    padding-top:1px;
+    word-break:break-word;
+    transition: color 0.15s ease;
+  }
+  .item.done .item-text{
+    color:var(--ink-soft);
+    text-decoration: line-through;
+    text-decoration-color:#C9C7BF;
+  }
+
+  .remove-btn{
+    flex:none;
+    background:none;
+    border:none;
+    color:var(--ink-soft);
+    font-size:18px;
+    line-height:1;
+    cursor:pointer;
+    opacity:0;
+    padding:0 2px;
+    transition:opacity 0.15s ease, color 0.15s ease;
+  }
+  .item:hover .remove-btn{ opacity:1; }
+  .remove-btn:hover{ color:#C0453C; }
+
+  .item.removing{
+    animation: collapse 0.25s forwards ease-in;
+  }
+  @keyframes collapse{
+    to{ opacity:0; transform: translateX(6px); }
+  }
+
+  .add-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:16px 0 6px;
+  }
+  .add-icon{
+    flex:none;
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    border:1.5px dashed #C9C7BF;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--ink-soft);
+    font-size:13px;
+  }
+  .add-row input{
+    flex:1;
+    border:none;
+    background:transparent;
+    font-family:'Inter', sans-serif;
+    font-size:14.5px;
+    color:var(--ink);
+    outline:none;
+    padding:2px 0;
+  }
+  .add-row input::placeholder{ color:var(--ink-soft); }
+
+  .empty-state{
+    padding:36px 0;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:13.5px;
+  }
+
+  .status-msg{
+    min-height:16px;
+    font-size:11.5px;
+    color:#C0453C;
+    margin-top:14px;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <header>
+    <div class="top-row">
+      <h1>할 일</h1>
+      <span class="today-date" id="today"></span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label">
+      <span id="progressText">0 / 0 완료</span>
+      <span id="progressPercent">0%</span>
+    </div>
+  </header>
+
+  <ul class="items" id="itemsList"></ul>
+  <div class="empty-state" id="emptyState" style="display:none;">아직 할 일이 없어요. 아래에 적어보세요.</div>
+
+  <div class="add-row">
+    <span class="add-icon">+</span>
+    <input id="taskInput" type="text" placeholder="할 일 추가하고 Enter" maxlength="120">
+  </div>
+
+  <div class="status-msg" id="statusMsg"></div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'receipt-tasks-v1';
+  let tasks = [];
+  let storageMode = 'checking'; // 'claude' | 'local' | 'memory'
+
+  async function detectStorageMode(){
+    // 1) Claude.ai 아티팩트 환경의 storage API 시도
+    try{
+      if(window.storage && typeof window.storage.set === 'function'){
+        const testKey = '__storage_test__';
+        const result = await window.storage.set(testKey, '1', false);
+        if(result){
+          storageMode = 'claude';
+          return;
+        }
+      }
+    }catch(e){ /* fall through */ }
+
+    // 2) 일반 브라우저의 localStorage 시도 (다운로드해서 직접 연 경우)
+    try{
+      localStorage.setItem('__storage_test__', '1');
+      localStorage.removeItem('__storage_test__');
+      storageMode = 'local';
+      return;
+    }catch(e){ /* fall through */ }
+
+    // 3) 둘 다 안되면 메모리에만 저장 (새로고침 시 사라짐)
+    storageMode = 'memory';
+  }
+
+  const itemsList = document.getElementById('itemsList');
+  const emptyState = document.getElementById('emptyState');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+  const progressPercent = document.getElementById('progressPercent');
+  const statusMsg = document.getElementById('statusMsg');
+  const taskInput = document.getElementById('taskInput');
+
+  const CHECK_SVG = '<svg viewBox="0 0 12 12" fill="none"><path d="M2 6.2L4.6 9L10 3" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  function setStatus(msg){
+    statusMsg.textContent = msg || '';
+    if(msg){ setTimeout(() => { if(statusMsg.textContent === msg) statusMsg.textContent = ''; }, 2500); }
+  }
+
+  function renderDate(){
+    const now = new Date();
+    document.getElementById('today').textContent = now.toLocaleDateString('ko-KR', { month:'long', day:'numeric', weekday:'short' });
+  }
+
+  function render(){
+    itemsList.innerHTML = '';
+    if(tasks.length === 0){
+      emptyState.style.display = 'block';
+    } else {
+      emptyState.style.display = 'none';
+      tasks.forEach(task => {
+        const li = document.createElement('li');
+        li.className = 'item' + (task.done ? ' done' : '');
+        li.dataset.id = task.id;
+
+        const circle = document.createElement('button');
+        circle.className = 'circle' + (task.done ? ' checked' : '');
+        circle.setAttribute('aria-label', task.done ? '완료 취소' : '완료 표시');
+        circle.innerHTML = CHECK_SVG;
+        circle.onclick = () => toggleTask(task.id);
+
+        const text = document.createElement('span');
+        text.className = 'item-text';
+        text.textContent = task.text;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-btn';
+        removeBtn.setAttribute('aria-label', '삭제');
+        removeBtn.textContent = '×';
+        removeBtn.onclick = () => removeTask(task.id, li);
+
+        li.append(circle, text, removeBtn);
+        itemsList.appendChild(li);
+      });
+    }
+
+    const total = tasks.length;
+    const done = tasks.filter(t => t.done).length;
+    const pct = total === 0 ? 0 : Math.round((done/total)*100);
+    progressFill.style.width = pct + '%';
+    progressText.textContent = done + ' / ' + total + ' 완료';
+    progressPercent.textContent = pct + '%';
+  }
+
+  async function loadTasks(){
+    await detectStorageMode();
+    try{
+      if(storageMode === 'claude'){
+        const result = await window.storage.get(STORAGE_KEY, false);
+        tasks = result ? JSON.parse(result.value) : [];
+      } else if(storageMode === 'local'){
+        const raw = localStorage.getItem(STORAGE_KEY);
+        tasks = raw ? JSON.parse(raw) : [];
+      } else {
+        tasks = [];
+        setStatus('이 브라우저에서는 저장이 지원되지 않아, 새로고침하면 목록이 사라져요.');
+      }
+    }catch(e){
+      tasks = [];
+    }
+    render();
+  }
+
+  async function saveTasks(){
+    try{
+      if(storageMode === 'claude'){
+        const result = await window.storage.set(STORAGE_KEY, JSON.stringify(tasks), false);
+        if(!result){ setStatus('저장하지 못했어요. 다시 시도해 주세요.'); }
+      } else if(storageMode === 'local'){
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      }
+      // memory 모드에서는 저장 시도 자체를 하지 않음 (이미 안내함)
+    }catch(e){
+      if(storageMode !== 'memory'){ setStatus('저장하지 못했어요. 다시 시도해 주세요.'); }
+    }
+  }
+
+  function addTask(){
+    const value = taskInput.value.trim();
+    if(!value) return;
+    tasks.push({
+      id: 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+      text: value,
+      done: false,
+      createdAt: Date.now()
+    });
+    taskInput.value = '';
+    render();
+    saveTasks();
+  }
+
+  function toggleTask(id){
+    const t = tasks.find(t => t.id === id);
+    if(t){
+      t.done = !t.done;
+      render();
+      saveTasks();
+    }
+  }
+
+  function removeTask(id, li){
+    li.classList.add('removing');
+    setTimeout(() => {
+      tasks = tasks.filter(t => t.id !== id);
+      render();
+      saveTasks();
+    }, 220);
+  }
+
+  let isComposing = false;
+  taskInput.addEventListener('compositionstart', () => { isComposing = true; });
+  taskInput.addEventListener('compositionend', () => { isComposing = false; });
+  taskInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' && !isComposing && e.keyCode !== 229) addTask();
+  });
+
+  renderDate();
+  loadTasks();
+</script>
+
+</body>
+</html>

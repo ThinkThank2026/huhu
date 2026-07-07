@@ -400,7 +400,7 @@
 
     <hr class="divider">
     <h3>최근 기록 (일별 요약)</h3>
-    <div class="hint-small" style="margin-bottom:2px;">예상 변화는 그날 순 칼로리(섭취-운동소모)를 7700kcal=1kg 기준으로 환산한 추정치예요. 실제 체중은 수분·소화 상태 등에 따라 다르게 나타날 수 있어요.</div>
+    <div class="hint-small" style="margin-bottom:2px;">예상 변화는 그날 섭취 칼로리에서 기초대사량(좌식 기준)과 운동 소모량을 뺀 값을 7700kcal=1kg 기준으로 환산한 추정치예요. 실제 체중은 수분·소화 상태 등에 따라 다르게 나타날 수 있어요.</div>
     <table class="log-table" id="logTable" style="display:none;">
       <thead>
         <tr><th>날짜</th><th>섭취</th><th>운동소모</th><th>순 칼로리</th><th>체중</th><th>예상 변화</th></tr>
@@ -796,6 +796,23 @@
   }
 
   // ---------- 날짜별 요약 ----------
+  function getWeightAsOf(date){
+    const weightEntries = data.entries
+      .filter(e => e.type === 'weight')
+      .sort((a,b) => a.date.localeCompare(b.date));
+    if(weightEntries.length === 0) return data.profile.weight || null;
+
+    // 해당 날짜 이전(또는 같은 날) 중 가장 최근 기록 우선
+    let candidate = null;
+    for(const w of weightEntries){
+      if(w.date <= date) candidate = w;
+      else break;
+    }
+    if(candidate) return candidate.weight;
+    // 그 전 기록이 없으면 이후 가장 이른 기록 사용
+    return weightEntries[0].weight;
+  }
+
   function getDayTotals(date){
     const dayEntries = data.entries.filter(e => e.date === date);
     const calories = dayEntries.filter(e => e.type === 'meal').reduce((s,e) => s + e.calories, 0);
@@ -841,17 +858,33 @@
     emptyHint.style.display = 'none';
 
     const KCAL_PER_KG = 7700; // 체지방 1kg ≈ 7700kcal (근사치)
+    const { gender, age, height } = data.profile;
+    const canUseBMR = gender && age && height;
 
     tbody.innerHTML = dates.map(date => {
       const { calories, burned, net, weight } = getDayTotals(date);
       const netClass = net >= 0 ? 'net-pos' : 'net-neg';
 
-      // 그날 순 칼로리를 바탕으로 한 예상 체중 변화 (근사치, 실제 체중과는 다를 수 있음)
-      const estChange = net / KCAL_PER_KG;
-      const estClass = estChange > 0 ? 'net-pos' : (estChange < 0 ? 'net-neg' : '');
-      const estText = (calories === 0 && burned === 0)
-        ? '—'
-        : `${estChange > 0 ? '+' : ''}${estChange.toFixed(2)}kg`;
+      let estChange = null;
+      if(canUseBMR){
+        const dayWeight = getWeightAsOf(date);
+        if(dayWeight){
+          const bmr = calcBMR(gender, dayWeight, height, age);
+          const restingBurn = bmr * 1.2; // 좌식 기준 기초 소모량 (운동 소모는 별도 가산)
+          const trueNet = calories - restingBurn - burned;
+          estChange = trueNet / KCAL_PER_KG;
+        }
+      }
+
+      let estCellHtml;
+      if(calories === 0 && burned === 0){
+        estCellHtml = '—';
+      } else if(estChange === null){
+        estCellHtml = '<span style="color:var(--ink-soft);">프로필 필요</span>';
+      } else {
+        const estClass = estChange > 0 ? 'net-pos' : (estChange < 0 ? 'net-neg' : '');
+        estCellHtml = `<span class="${estClass}">${estChange > 0 ? '+' : ''}${estChange.toFixed(2)}kg</span>`;
+      }
 
       return `
         <tr>
@@ -860,7 +893,7 @@
           <td>${burned}</td>
           <td class="${netClass}">${net >= 0 ? '+' : ''}${net}</td>
           <td>${weight ? weight + 'kg' : '—'}</td>
-          <td class="${estClass}">${estText}</td>
+          <td>${estCellHtml}</td>
         </tr>
       `;
     }).join('');

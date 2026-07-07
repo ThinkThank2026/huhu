@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Log+</title>
+<title>체중 & 칼로리 트래커</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <style>
@@ -292,7 +292,7 @@
 <body>
 
 <div class="page">
-  <h1>Log+</h1>
+  <h1>체중 & 칼로리 트래커</h1>
   <span class="today-date" id="todayDate"></span>
 
   <!-- 프로필 -->
@@ -302,8 +302,8 @@
       <div class="field">
         <label>성별</label>
         <select id="p-gender">
-          <option value="male">여성</option>
-          <option value="female">남성</option>
+          <option value="male">남성</option>
+          <option value="female">여성</option>
         </select>
       </div>
       <div class="field">
@@ -312,11 +312,11 @@
       </div>
       <div class="field">
         <label>키 (cm)</label>
-        <input id="p-height" type="number" min="100" max="250" step="0.1" placeholder="예: 168">
+        <input id="p-height" type="number" min="100" max="250" step="0.1" placeholder="예: 170">
       </div>
       <div class="field">
         <label>현재 몸무게 (kg)</label>
-        <input id="p-weight" type="number" min="20" max="300" step="0.1" placeholder="예: 55">
+        <input id="p-weight" type="number" min="20" max="300" step="0.1" placeholder="예: 65">
       </div>
     </div>
     <div class="btn-row">
@@ -400,9 +400,10 @@
 
     <hr class="divider">
     <h3>최근 기록 (일별 요약)</h3>
+    <div class="hint-small" style="margin-bottom:2px;">예상 변화는 그날 순 칼로리(섭취-운동소모)를 7700kcal=1kg 기준으로 환산한 추정치예요. 실제 체중은 수분·소화 상태 등에 따라 다르게 나타날 수 있어요.</div>
     <table class="log-table" id="logTable" style="display:none;">
       <thead>
-        <tr><th>날짜</th><th>섭취</th><th>운동소모</th><th>순 칼로리</th><th>체중</th></tr>
+        <tr><th>날짜</th><th>섭취</th><th>운동소모</th><th>순 칼로리</th><th>체중</th><th>예상 변화</th></tr>
       </thead>
       <tbody id="logTableBody"></tbody>
     </table>
@@ -611,7 +612,7 @@
     }
 
     let recommended = tdee + dailyAdjustment;
-    const floor = gender === 'male' ? 1500 : 1000;
+    const floor = gender === 'male' ? 1500 : 1200;
     let floorNote = '';
     if(recommended < floor){
       recommended = floor;
@@ -839,9 +840,19 @@
     table.style.display = 'table';
     emptyHint.style.display = 'none';
 
+    const KCAL_PER_KG = 7700; // 체지방 1kg ≈ 7700kcal (근사치)
+
     tbody.innerHTML = dates.map(date => {
       const { calories, burned, net, weight } = getDayTotals(date);
       const netClass = net >= 0 ? 'net-pos' : 'net-neg';
+
+      // 그날 순 칼로리를 바탕으로 한 예상 체중 변화 (근사치, 실제 체중과는 다를 수 있음)
+      const estChange = net / KCAL_PER_KG;
+      const estClass = estChange > 0 ? 'net-pos' : (estChange < 0 ? 'net-neg' : '');
+      const estText = (calories === 0 && burned === 0)
+        ? '—'
+        : `${estChange > 0 ? '+' : ''}${estChange.toFixed(2)}kg`;
+
       return `
         <tr>
           <td>${date.slice(5)}</td>
@@ -849,6 +860,7 @@
           <td>${burned}</td>
           <td class="${netClass}">${net >= 0 ? '+' : ''}${net}</td>
           <td>${weight ? weight + 'kg' : '—'}</td>
+          <td class="${estClass}">${estText}</td>
         </tr>
       `;
     }).join('');

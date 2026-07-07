@@ -611,7 +611,7 @@
     }
 
     let recommended = tdee + dailyAdjustment;
-    const floor = gender === 'male' ? 1000 : 800;
+    const floor = gender === 'male' ? 1500 : 1000;
     let floorNote = '';
     if(recommended < floor){
       recommended = floor;

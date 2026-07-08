@@ -47,8 +47,75 @@
     font-size:12px;
     color:var(--ink-soft);
     font-weight:500;
-    margin-bottom:36px;
     display:block;
+  }
+
+  .header-row{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:6px;
+  }
+
+  .auth-slot{
+    position:relative;
+    flex:none;
+    padding-top:2px;
+  }
+
+  .avatar-btn{
+    width:34px;
+    height:34px;
+    border-radius:50%;
+    border:1px solid var(--line);
+    background:var(--accent-soft);
+    color:var(--accent);
+    font-family:'Inter', sans-serif;
+    font-weight:600;
+    font-size:13px;
+    overflow:hidden;
+    cursor:pointer;
+    padding:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .avatar-btn img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
+  }
+
+  .auth-popover{
+    position:absolute;
+    top:42px;
+    right:0;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.10);
+    min-width:190px;
+    z-index:20;
+  }
+
+  .card-header-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    cursor:pointer;
+    margin:0 0 16px;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .card-header-row h2{ margin:0; }
+  .chevron{
+    font-size:12px;
+    color:var(--ink-soft);
+    transition:transform 0.15s ease;
+    flex:none;
+    padding-left:10px;
   }
 
   section.card{
@@ -301,51 +368,55 @@
 <div class="page">
   <div id="errorBanner" style="display:none; background:#FDECEA; color:#B23A2E; border:1px solid #F1C0BA; border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:12px; line-height:1.6; word-break:break-word;"></div>
 
-  <h1>Log+</h1>
-  <span class="today-date" id="todayDate"></span>
-
-  <!-- 동기화 -->
-  <section class="card" id="syncCard">
-    <h2>동기화</h2>
-    <div id="syncSignedOut">
-      <div class="hint-small" style="margin-bottom:12px;">구글 계정으로 로그인하면 여러 기기에서 같은 데이터를 볼 수 있어요.</div>
+  <div class="header-row">
+    <div>
+      <h1>Log+</h1>
+      <span class="today-date" id="todayDate"></span>
+    </div>
+    <div class="auth-slot" id="authSlotEl">
       <div id="gisButtonContainer"></div>
+      <button id="avatarBtn" class="avatar-btn" style="display:none;" aria-label="계정 메뉴"></button>
+      <div id="authPopover" class="auth-popover" style="display:none;">
+        <div class="hint-small" id="syncUserEmail" style="margin-bottom:10px;"></div>
+        <button class="btn small secondary-btn" id="signOutBtn" style="background:transparent;color:var(--ink-soft);border:1px solid var(--line); width:100%;">로그아웃</button>
+      </div>
     </div>
-    <div id="syncSignedIn" style="display:none;">
-      <div class="hint-small" id="syncUserEmail" style="margin-bottom:10px;"></div>
-      <button class="btn small secondary-btn" id="signOutBtn" style="background:transparent;color:var(--ink-soft);border:1px solid var(--line);">로그아웃</button>
-    </div>
-    <div class="save-hint" id="syncHint"></div>
-  </section>
+  </div>
+  <div class="save-hint" id="syncHint" style="text-align:right; margin-bottom:14px;"></div>
 
   <!-- 프로필 -->
   <section class="card">
-    <h2>내 프로필</h2>
-    <div class="field-grid">
-      <div class="field">
-        <label>성별</label>
-        <select id="p-gender">
-          <option value="male">남성</option>
-          <option value="female">여성</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>나이</label>
-        <input id="p-age" type="number" min="10" max="100" placeholder="예: 32">
-      </div>
-      <div class="field">
-        <label>키 (cm)</label>
-        <input id="p-height" type="number" min="100" max="250" step="0.1" placeholder="예: 170">
-      </div>
-      <div class="field">
-        <label>현재 몸무게 (kg)</label>
-        <input id="p-weight" type="number" min="20" max="300" step="0.1" placeholder="예: 65">
-      </div>
+    <div class="card-header-row" id="profileToggle">
+      <h2 style="margin:0;">내 프로필</h2>
+      <span class="chevron" id="profileChevron">▾</span>
     </div>
-    <div class="btn-row">
-      <button class="btn" id="saveProfileBtn">프로필 저장</button>
+    <div id="profileBody">
+      <div class="field-grid">
+        <div class="field">
+          <label>성별</label>
+          <select id="p-gender">
+            <option value="male">남성</option>
+            <option value="female">여성</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>나이</label>
+          <input id="p-age" type="number" min="10" max="100" placeholder="예: 32">
+        </div>
+        <div class="field">
+          <label>키 (cm)</label>
+          <input id="p-height" type="number" min="100" max="250" step="0.1" placeholder="예: 170">
+        </div>
+        <div class="field">
+          <label>현재 몸무게 (kg)</label>
+          <input id="p-weight" type="number" min="20" max="300" step="0.1" placeholder="예: 65">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="saveProfileBtn">프로필 저장</button>
+      </div>
+      <div class="save-hint" id="profileSaveHint"></div>
     </div>
-    <div class="save-hint" id="profileSaveHint"></div>
   </section>
 
   <!-- 목표 -->
@@ -516,17 +587,39 @@
   });
 
   function updateSyncUI(){
-    const outBox = document.getElementById('syncSignedOut');
-    const inBox = document.getElementById('syncSignedIn');
+    const gisContainer = document.getElementById('gisButtonContainer');
+    const avatarBtn = document.getElementById('avatarBtn');
+    const popover = document.getElementById('authPopover');
     if(currentUser){
-      outBox.style.display = 'none';
-      inBox.style.display = 'block';
+      gisContainer.style.display = 'none';
+      avatarBtn.style.display = 'flex';
+      if(currentUser.photoURL){
+        avatarBtn.innerHTML = `<img src="${currentUser.photoURL}" alt="프로필 사진">`;
+      } else {
+        const initial = (currentUser.email || '?').charAt(0).toUpperCase();
+        avatarBtn.innerHTML = '';
+        avatarBtn.textContent = initial;
+      }
       document.getElementById('syncUserEmail').textContent = `${currentUser.email} 계정으로 동기화 중`;
     } else {
-      outBox.style.display = 'block';
-      inBox.style.display = 'none';
+      gisContainer.style.display = 'block';
+      avatarBtn.style.display = 'none';
+      popover.style.display = 'none';
     }
   }
+
+  document.getElementById('avatarBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const popover = document.getElementById('authPopover');
+    popover.style.display = popover.style.display === 'block' ? 'none' : 'block';
+  });
+  document.addEventListener('click', (e) => {
+    const slot = document.getElementById('authSlotEl') || document.querySelector('.auth-slot');
+    const popover = document.getElementById('authPopover');
+    if(popover.style.display === 'block' && slot && !slot.contains(e.target)){
+      popover.style.display = 'none';
+    }
+  });
 
   const GOOGLE_CLIENT_ID = '984616560190-f9r0v2q2h4pmha0hug0sc6nga1gagreo.apps.googleusercontent.com';
 
@@ -568,7 +661,7 @@
     const container = document.getElementById('gisButtonContainer');
     if(container){
       google.accounts.id.renderButton(container, {
-        theme: 'outline', size: 'large', text: 'signin_with', shape: 'rectangular', width: 240
+        theme: 'outline', size: 'medium', type: 'icon', shape: 'circle'
       });
     }
   }).catch((e) => {
@@ -580,6 +673,7 @@
   document.getElementById('signOutBtn').addEventListener('click', async () => {
     try{
       await signOut(auth);
+      document.getElementById('authPopover').style.display = 'none';
     }catch(e){ /* 무시 */ }
   });
 
@@ -731,11 +825,33 @@
   const heightEl = document.getElementById('p-height');
   const weightEl = document.getElementById('p-weight');
 
+  let profileExpanded = true;
+
+  function isProfileComplete(){
+    const { gender, age, height, weight } = data.profile;
+    return !!(gender && age && height && weight);
+  }
+
+  function updateProfileCollapse(){
+    const body = document.getElementById('profileBody');
+    const chevron = document.getElementById('profileChevron');
+    body.style.display = profileExpanded ? 'block' : 'none';
+    chevron.textContent = profileExpanded ? '▴' : '▾';
+  }
+
+  document.getElementById('profileToggle').addEventListener('click', () => {
+    profileExpanded = !profileExpanded;
+    updateProfileCollapse();
+  });
+
   function fillProfileForm(){
     genderEl.value = data.profile.gender || 'male';
     ageEl.value = data.profile.age ?? '';
     heightEl.value = data.profile.height ?? '';
     weightEl.value = data.profile.weight ?? '';
+    // 이미 정보가 채워져 있으면 기본적으로 접어서 나이/몸무게가 바로 노출되지 않게 함
+    profileExpanded = !isProfileComplete();
+    updateProfileCollapse();
   }
 
   document.getElementById('saveProfileBtn').addEventListener('click', () => {
@@ -748,6 +864,10 @@
     saveData(document.getElementById('profileSaveHint'));
     renderGoalResult();
     renderChart();
+    if(isProfileComplete()){
+      profileExpanded = false;
+      updateProfileCollapse();
+    }
   });
 
   // ---------- 목표 ----------

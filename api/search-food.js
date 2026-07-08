@@ -83,7 +83,7 @@ export default async function handler(req, res) {
     });
 
     // 칼로리 필드를 아직 못 찾은 경우를 대비해, 첫 번째 결과의 원본 필드를 함께 보내줌 (진단용)
-    const responsePayload = { results };
+    const responsePayload = { results, _debugVersion: 'v3-items-array-fix' };
     if (items.length > 0 && results[0] && results[0].kcal === null) {
       responsePayload.debugFirstItemRaw = items[0];
     }

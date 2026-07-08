@@ -67,7 +67,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    let items = data?.response?.body?.items?.item;
+    let items = data?.response?.body?.items;
     if (!items) items = [];
     if (!Array.isArray(items)) items = [items]; // 결과가 1건이면 배열이 아니라 객체로 오는 경우가 있음
 
@@ -77,6 +77,8 @@ export default async function handler(req, res) {
       return {
         name: name || '(이름 확인 필요)',
         kcal: kcalRaw !== null ? Math.round(parseFloat(kcalRaw) || 0) : null,
+        servingSize: item.SERVING_SIZE || null,
+        category: item.FOOD_CAT1_NM || null,
       };
     });
 

@@ -525,7 +525,7 @@
       </div>
       <button class="btn small" id="addMealBtn">추가</button>
     </div>
-    <div class="hint-small" id="foodSearchHint" style="margin-top:8px;">식약처 데이터베이스에서 검색한 뒤 섭취량(g)을 입력하면 칼로리가 자동으로 계산돼요. (기본값은 100g 기준 수치예요)</div>
+    <div class="hint-small" id="foodSearchHint" style="margin-top:8px;">검색해서 선택하면 음식 종류에 맞춰 1인분 정도로 추정한 섭취량(g)과 칼로리가 자동으로 채워져요. 실제 양과 다르면 섭취량(g)만 고쳐도 칼로리가 다시 계산돼요.</div>
     <ul class="entry-list" id="mealList"></ul>
     <div class="empty-hint" id="mealEmptyHint">이 날짜에 추가된 식사가 없어요.</div>
 
@@ -1117,18 +1117,55 @@
     return match ? parseFloat(match[1]) : null;
   }
 
+  // 음식 분류별 "1인분(1그릇)" 대략적인 추정량 (g). 식약처 데이터엔 100g 기준값만 있어서,
+  // 실제 체감하기 쉬운 1인분 단위로 기본값을 보여주기 위한 참고용 추정치입니다.
+  const CATEGORY_SERVING_G = {
+    '찌개 및 전골류': 350,
+    '국 및 탕류': 300,
+    '탕 및 찌개류': 300,
+    '밥류': 210,
+    '죽 및 스프류': 300,
+    '면 및 만두류': 400,
+    '찜류': 250,
+    '구이류': 120,
+    '전·적 및 부침류': 150,
+    '볶음류': 150,
+    '튀김류': 120,
+    '무침류': 80,
+    '조림류': 100,
+    '장아찌·절임류': 40,
+    '김치류': 40,
+    '젓갈류': 30,
+    '빵 및 과자류': 60,
+    '과자류, 빵류 또는 떡류': 60,
+    '음료류': 250,
+    '유제품류': 200,
+    '차류': 200,
+    '주류': 200,
+  };
+  const DEFAULT_SERVING_G = 150; // 분류를 못 찾았을 때의 기본 추정치
+
+  function estimateServingGrams(category){
+    if(category && CATEGORY_SERVING_G[category]) return CATEGORY_SERVING_G[category];
+    return DEFAULT_SERVING_G;
+  }
+
   function renderSuggestions(results){
     if(results.length === 0){
       foodSuggestionsEl.innerHTML = '<div class="suggestion-empty">검색 결과가 없어요. 직접 입력해 주세요.</div>';
       foodSuggestionsEl.style.display = 'block';
       return;
     }
-    foodSuggestionsEl.innerHTML = results.slice(0, 15).map((r, i) => `
+    foodSuggestionsEl.innerHTML = results.slice(0, 15).map((r, i) => {
+      const estGrams = estimateServingGrams(r.category);
+      const estKcal = r.kcal != null ? Math.round(r.kcal * estGrams / 100) : null;
+      return `
       <div class="suggestion-item" data-idx="${i}">
-        <span class="s-name">${escapeHtml(r.name)}${r.servingSize ? ` <span style="color:var(--ink-soft);">(${escapeHtml(r.servingSize)}당)</span>` : ''}</span>
-        <span class="s-kcal">${r.kcal != null ? r.kcal + 'kcal' : '-'}</span>
+        <span class="s-name">${escapeHtml(r.name)}${r.sampleCount > 1 ? ` <span style="color:var(--ink-soft);">(${r.sampleCount}개 평균)</span>` : ''}</span>
+        <span class="s-kcal">${estKcal != null ? `약 ${estGrams}g · ${estKcal}kcal` : '-'}</span>
       </div>
-    `).join('');
+    `;
+    }).join('');
     foodSuggestionsEl.style.display = 'block';
     foodSuggestionsEl.querySelectorAll('.suggestion-item').forEach((el) => {
       el.addEventListener('click', () => {
@@ -1136,12 +1173,12 @@
         const picked = results[idx];
         foodNameEl.value = picked.name;
 
-        const baseGrams = parseGramsFromServingSize(picked.servingSize) || 100;
         if(picked.kcal != null){
-          // "100g당 X kcal"으로 환산해서 기준값 저장 (기준량이 100g이 아닌 경우도 대비)
-          selectedFoodKcalPer100g = (picked.kcal / baseGrams) * 100;
-          mealGramsEl.value = baseGrams; // 일단 기준량으로 채워두고, 실제 섭취량으로 사용자가 수정
-          mealCaloriesEl.value = picked.kcal;
+          // picked.kcal은 100g 기준값. 분류별 1인분 추정량으로 환산해서 기본값으로 채워줌
+          selectedFoodKcalPer100g = picked.kcal;
+          const estGrams = estimateServingGrams(picked.category);
+          mealGramsEl.value = estGrams;
+          mealCaloriesEl.value = Math.round(picked.kcal * estGrams / 100);
         } else {
           selectedFoodKcalPer100g = null;
         }

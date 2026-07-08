@@ -301,6 +301,20 @@
   <h1>체중 & 칼로리 트래커</h1>
   <span class="today-date" id="todayDate"></span>
 
+  <!-- 동기화 -->
+  <section class="card" id="syncCard">
+    <h2>동기화</h2>
+    <div id="syncSignedOut">
+      <div class="hint-small" style="margin-bottom:12px;">구글 계정으로 로그인하면 여러 기기에서 같은 데이터를 볼 수 있어요.</div>
+      <button class="btn small" id="googleSignInBtn">Google로 로그인</button>
+    </div>
+    <div id="syncSignedIn" style="display:none;">
+      <div class="hint-small" id="syncUserEmail" style="margin-bottom:10px;"></div>
+      <button class="btn small secondary-btn" id="signOutBtn" style="background:transparent;color:var(--ink-soft);border:1px solid var(--line);">로그아웃</button>
+    </div>
+    <div class="save-hint" id="syncHint"></div>
+  </section>
+
   <!-- 프로필 -->
   <section class="card">
     <h2>내 프로필</h2>
@@ -431,7 +445,77 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js';
+  import {
+    getFirestore, doc, getDoc, setDoc
+  } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAiKG1z5VvAGoRsPz1MRRQSONrSOKd_Ikg",
+    authDomain: "huhu-e7a05.firebaseapp.com",
+    projectId: "huhu-e7a05",
+    storageBucket: "huhu-e7a05.firebasestorage.app",
+    messagingSenderId: "984616560190",
+    appId: "1:984616560190:web:15eccc1f591420e890936f",
+    measurementId: "G-0ET41BRHT5"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const auth = getAuth(fbApp);
+  const googleProvider = new GoogleAuthProvider();
+  const db = getFirestore(fbApp);
+
+  let currentUser = null;
+  let authReadyResolve;
+  const authReady = new Promise(resolve => { authReadyResolve = resolve; });
+  let firstAuthCheck = true;
+
+  onAuthStateChanged(auth, async (user) => {
+    currentUser = user;
+    updateSyncUI();
+    if(firstAuthCheck){
+      firstAuthCheck = false;
+      authReadyResolve();
+    } else {
+      // 로그인/로그아웃이 이후에 발생한 경우: 데이터 다시 불러와서 전체 화면 갱신
+      await loadData();
+      renderAll();
+    }
+  });
+
+  function updateSyncUI(){
+    const outBox = document.getElementById('syncSignedOut');
+    const inBox = document.getElementById('syncSignedIn');
+    if(currentUser){
+      outBox.style.display = 'none';
+      inBox.style.display = 'block';
+      document.getElementById('syncUserEmail').textContent = `${currentUser.email} 계정으로 동기화 중`;
+    } else {
+      outBox.style.display = 'block';
+      inBox.style.display = 'none';
+    }
+  }
+
+  document.getElementById('googleSignInBtn').addEventListener('click', async () => {
+    const hint = document.getElementById('syncHint');
+    try{
+      await signInWithPopup(auth, googleProvider);
+      showHint(hint, '로그인됐어요.', false);
+    }catch(e){
+      showHint(hint, '로그인에 실패했어요. 다시 시도해 주세요.', true);
+    }
+  });
+
+  document.getElementById('signOutBtn').addEventListener('click', async () => {
+    try{
+      await signOut(auth);
+    }catch(e){ /* 무시 */ }
+  });
+
   const STORAGE_KEY = 'weight-tracker-v2';
   const OLD_STORAGE_KEY = 'weight-tracker-v1';
   let storageMode = 'checking';
@@ -479,6 +563,47 @@
   }
 
   async function loadData(){
+    await authReady;
+
+    if(currentUser){
+      try{
+        const ref = doc(db, 'users', currentUser.uid);
+        const snap = await getDoc(ref);
+        if(snap.exists()){
+          data = JSON.parse(snap.data().payload);
+          storageMode = 'firebase';
+          return;
+        }
+        // Firestore에 데이터가 없으면 이 기기의 로컬 데이터를 1회 마이그레이션
+        let migrated = null;
+        await detectStorageMode();
+        try{
+          if(storageMode === 'claude'){
+            const result = await window.storage.get(STORAGE_KEY, false);
+            if(result) migrated = JSON.parse(result.value);
+            else{
+              const oldResult = await window.storage.get(OLD_STORAGE_KEY, false).catch(()=>null);
+              if(oldResult) migrated = migrateOldData(JSON.parse(oldResult.value));
+            }
+          } else if(storageMode === 'local'){
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if(raw) migrated = JSON.parse(raw);
+            else{
+              const oldRaw = localStorage.getItem(OLD_STORAGE_KEY);
+              if(oldRaw) migrated = migrateOldData(JSON.parse(oldRaw));
+            }
+          }
+        }catch(e){ /* 마이그레이션할 데이터 없음 */ }
+
+        storageMode = 'firebase';
+        if(migrated) data = migrated;
+        await saveData(null); // Firestore에 최초 저장
+        return;
+      }catch(e){
+        // Firestore 접근 실패 시 아래 로컬 저장 방식으로 대체
+      }
+    }
+
     await detectStorageMode();
     try{
       if(storageMode === 'claude'){
@@ -497,6 +622,12 @@
 
   async function saveData(hintEl){
     try{
+      if(storageMode === 'firebase' && currentUser){
+        const ref = doc(db, 'users', currentUser.uid);
+        await setDoc(ref, { payload: JSON.stringify(data), updatedAt: Date.now() });
+        if(hintEl) showHint(hintEl, '저장됐어요.', false);
+        return;
+      }
       if(storageMode === 'claude'){
         const result = await window.storage.set(STORAGE_KEY, JSON.stringify(data), false);
         if(!result){ if(hintEl) showHint(hintEl, '저장하지 못했어요.', true); return; }
@@ -969,11 +1100,7 @@
   }
 
   // ---------- 초기화 ----------
-  async function init(){
-    dateEl.value = todayStr();
-    document.getElementById('todayDate').textContent = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
-
-    await loadData();
+  function renderAll(){
     fillProfileForm();
     fillGoalForm();
     loadWeightForDate();
@@ -983,6 +1110,14 @@
     renderSummary();
     renderLogTable();
     renderChart();
+  }
+
+  async function init(){
+    dateEl.value = todayStr();
+    document.getElementById('todayDate').textContent = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
+
+    await loadData();
+    renderAll();
   }
 
   init();

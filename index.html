@@ -298,6 +298,8 @@
 <body>
 
 <div class="page">
+  <div id="errorBanner" style="display:none; background:#FDECEA; color:#B23A2E; border:1px solid #F1C0BA; border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:12px; line-height:1.6; word-break:break-word;"></div>
+
   <h1>체중 & 칼로리 트래커</h1>
   <span class="today-date" id="todayDate"></span>
 
@@ -446,6 +448,18 @@
 </div>
 
 <script type="module">
+  function showError(msg){
+    try{
+      const banner = document.getElementById('errorBanner');
+      if(banner){
+        banner.style.display = 'block';
+        banner.textContent = '⚠ 오류가 발생했어요: ' + msg;
+      }
+    }catch(e){ /* 배너조차 못 띄우면 무시 */ }
+  }
+  window.addEventListener('error', (e) => showError(e.message || String(e.error)));
+  window.addEventListener('unhandledrejection', (e) => showError((e.reason && e.reason.message) || String(e.reason)));
+
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
   import {
     getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged
@@ -473,6 +487,15 @@
   let authReadyResolve;
   const authReady = new Promise(resolve => { authReadyResolve = resolve; });
   let firstAuthCheck = true;
+
+  // 안전장치: 5초 안에 인증 상태 확인이 안 되면(네트워크 문제 등) 로그아웃 상태로 간주하고 진행
+  setTimeout(() => {
+    if(firstAuthCheck){
+      firstAuthCheck = false;
+      showError('로그인 상태 확인이 지연되고 있어요. 로컬 데이터로 우선 표시할게요.');
+      authReadyResolve();
+    }
+  }, 5000);
 
   onAuthStateChanged(auth, async (user) => {
     currentUser = user;
@@ -1122,8 +1145,13 @@
     dateEl.value = todayStr();
     document.getElementById('todayDate').textContent = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
 
-    await loadData();
-    renderAll();
+    try{
+      await loadData();
+      renderAll();
+    }catch(e){
+      showError(e.message || String(e));
+      renderAll(); // 저장소 로딩이 실패해도 최소한 빈 화면 대신 기본 UI는 보여줌
+    }
   }
 
   init();

@@ -466,7 +466,8 @@
 
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
   import {
-    getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged
+    getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged,
+    setPersistence, browserLocalPersistence
   } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js';
   import {
     getFirestore, doc, getDoc, setDoc
@@ -484,6 +485,10 @@
 
   const fbApp = initializeApp(firebaseConfig);
   const auth = getAuth(fbApp);
+  const persistenceReady = setPersistence(auth, browserLocalPersistence).catch((e) => {
+    console.error('[auth] setPersistence 에러:', e);
+    showError('setPersistence 에러: ' + (e.code || e.message));
+  });
   const googleProvider = new GoogleAuthProvider();
   const db = getFirestore(fbApp);
 
@@ -541,9 +546,12 @@
     }
   });
 
-  // 리다이렉트 로그인 후 돌아왔을 때 결과 처리 (오류 확인용, 실제 로그인 상태는 onAuthStateChanged가 처리)
-  console.log('[auth] getRedirectResult 호출 시작');
-  getRedirectResult(auth).then((result) => {
+  // 리다이렉트 로그인 후 돌아왔을 때 결과 처리 (persistence 설정이 끝난 뒤에 실행되도록 순서 보장)
+  console.log('[auth] getRedirectResult 호출 준비 (persistence 대기 중)');
+  persistenceReady.then(() => {
+    console.log('[auth] getRedirectResult 호출 시작');
+    return getRedirectResult(auth);
+  }).then((result) => {
     console.log('[auth] getRedirectResult 결과:', result ? result.user.email : '결과 없음(null)');
     if(!result){
       showError('getRedirectResult가 null을 반환했어요. (로그인 세션 정보가 유지되지 않았을 가능성)');

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>체중 & 칼로리 트래커</title>
+<title>Log+</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <style>
@@ -304,7 +304,7 @@
 <div class="page">
   <div id="errorBanner" style="display:none; background:#FDECEA; color:#B23A2E; border:1px solid #F1C0BA; border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:12px; line-height:1.6; word-break:break-word;"></div>
 
-  <h1>체중 & 칼로리 트래커</h1>
+  <h1>Log+</h1>
   <span class="today-date" id="todayDate"></span>
 
   <!-- 동기화 -->
@@ -312,7 +312,7 @@
     <h2>동기화</h2>
     <div id="syncSignedOut">
       <div class="hint-small" style="margin-bottom:12px;">구글 계정으로 로그인하면 여러 기기에서 같은 데이터를 볼 수 있어요.</div>
-      <button class="btn small" id="googleSignInBtn">Google로 로그인</button>
+      <div id="gisButtonContainer"></div>
     </div>
     <div id="syncSignedIn" style="display:none;">
       <div class="hint-small" id="syncUserEmail" style="margin-bottom:10px;"></div>
@@ -466,7 +466,7 @@
 
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
   import {
-    getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged,
+    getAuth, GoogleAuthProvider, signInWithCredential, signOut, onAuthStateChanged,
     setPersistence, browserLocalPersistence
   } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js';
   import {
@@ -533,35 +533,54 @@
     }
   }
 
-  document.getElementById('googleSignInBtn').addEventListener('click', async () => {
+  const GOOGLE_CLIENT_ID = '984616560190-f9r0v2q2h4pmha0hug0sc6nga1gagreo.apps.googleusercontent.com';
+
+  function loadGsiScript(){
+    return new Promise((resolve, reject) => {
+      if(window.google && window.google.accounts && window.google.accounts.id){ resolve(); return; }
+      const s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client';
+      s.async = true;
+      s.defer = true;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('구글 로그인 스크립트를 불러오지 못했어요.'));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function handleCredentialResponse(response){
+    console.log('[auth] GIS credential 응답 수신');
     const hint = document.getElementById('syncHint');
-    console.log('[auth] 로그인 버튼 클릭, signInWithRedirect 호출');
     try{
-      await signInWithRedirect(auth, googleProvider);
-      // 이 시점 이후 페이지가 구글 로그인 화면으로 이동하므로 아래 코드는 보통 실행되지 않음
+      const credential = GoogleAuthProvider.credential(response.credential);
+      const result = await signInWithCredential(auth, credential);
+      console.log('[auth] signInWithCredential 성공:', result.user.email);
+      showHint(hint, '로그인됐어요.', false);
     }catch(e){
-      console.error('[auth] signInWithRedirect 에러:', e);
-      showError('signInWithRedirect 에러: ' + (e.code || e.message));
+      console.error('[auth] signInWithCredential 에러:', e);
+      showError('로그인 처리 중 에러: ' + (e.code || e.message));
       showHint(hint, '로그인에 실패했어요. 다시 시도해 주세요.', true);
     }
-  });
+  }
 
-  // 리다이렉트 로그인 후 돌아왔을 때 결과 처리 (persistence 설정이 끝난 뒤에 실행되도록 순서 보장)
-  console.log('[auth] getRedirectResult 호출 준비 (persistence 대기 중)');
-  persistenceReady.then(() => {
-    console.log('[auth] getRedirectResult 호출 시작');
-    return getRedirectResult(auth);
-  }).then((result) => {
-    console.log('[auth] getRedirectResult 결과:', result ? result.user.email : '결과 없음(null)');
-    if(!result){
-      showError('getRedirectResult가 null을 반환했어요. (로그인 세션 정보가 유지되지 않았을 가능성)');
+  loadGsiScript().then(() => {
+    console.log('[auth] GSI 스크립트 로드 완료, 버튼 렌더링');
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleCredentialResponse,
+      auto_select: false
+    });
+    const container = document.getElementById('gisButtonContainer');
+    if(container){
+      google.accounts.id.renderButton(container, {
+        theme: 'outline', size: 'large', text: 'signin_with', shape: 'rectangular', width: 240
+      });
     }
   }).catch((e) => {
-    console.error('[auth] getRedirectResult 에러:', e);
-    showError('getRedirectResult 에러: ' + (e.code || e.message));
-    const hint = document.getElementById('syncHint');
-    if(hint) showHint(hint, '로그인에 실패했어요. 다시 시도해 주세요.', true);
+    console.error('[auth] GSI 로드 에러:', e);
+    showError('구글 로그인 버튼 로드 실패: ' + e.message);
   });
+
 
   document.getElementById('signOutBtn').addEventListener('click', async () => {
     try{

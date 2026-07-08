@@ -93,7 +93,7 @@ export default async function handler(req, res) {
       responsePayload.debugRawPreview = JSON.stringify(data).slice(0, 800);
     }
 
-    res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
+    res.setHeader('Cache-Control', 'no-store');
     res.status(200).json(responsePayload);
   } catch (e) {
     res.status(500).json({ error: '서버 오류', message: e.message });

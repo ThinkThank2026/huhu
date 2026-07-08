@@ -296,9 +296,6 @@
 </style>
 </head>
 <body>
-<!-- 임시 디버깅 도구: 문제 해결 후 이 두 줄은 삭제하세요 -->
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
 
 
 <div class="page">
@@ -461,8 +458,6 @@
       }
     }catch(e){ /* 배너조차 못 띄우면 무시 */ }
   }
-  window.addEventListener('error', (e) => showError(e.message || String(e.error)));
-  window.addEventListener('unhandledrejection', (e) => showError((e.reason && e.reason.message) || String(e.reason)));
 
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
   import {
@@ -497,11 +492,11 @@
   const authReady = new Promise(resolve => { authReadyResolve = resolve; });
   let firstAuthCheck = true;
 
-  // 안전장치: 5초 안에 인증 상태 확인이 안 되면(네트워크 문제 등) 로그아웃 상태로 간주하고 진행
+  // 안전장치: 5초 안에 인증 상태 확인이 안 되면(네트워크 문제 등) 로그아웃 상태로 간주하고 조용히 진행
   setTimeout(() => {
     if(firstAuthCheck){
       firstAuthCheck = false;
-      showError('로그인 상태 확인이 지연되고 있어요. 로컬 데이터로 우선 표시할게요.');
+      console.log('[auth] 인증 상태 확인 타임아웃, 로컬 데이터로 진행');
       authReadyResolve();
     }
   }, 5000);

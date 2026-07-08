@@ -309,22 +309,20 @@
     font-size:12.5px;
     cursor:pointer;
     display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:10px;
+    flex-direction:column;
+    gap:2px;
     border-bottom:1px solid var(--line);
   }
   .suggestion-item:last-child{ border-bottom:none; }
   .suggestion-item:hover{ background:var(--accent-soft); }
   .suggestion-item .s-name{
-    flex:1;
+    color:var(--ink);
     overflow:hidden;
     text-overflow:ellipsis;
     white-space:nowrap;
   }
   .suggestion-item .s-kcal{
     color:var(--ink-soft);
-    flex:none;
     font-size:11.5px;
   }
   .suggestion-empty{

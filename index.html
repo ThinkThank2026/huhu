@@ -510,10 +510,14 @@
 
     <h3>🍽 식사 추가</h3>
     <div class="add-row-inline">
-      <div class="field" id="foodFieldWrap" style="position:relative;">
+      <div class="field" id="foodFieldWrap" style="position:relative; flex:2 1 160px;">
         <label>음식 이름</label>
         <input id="m-food" type="text" placeholder="예: 닭가슴살 샐러드 (검색해서 자동입력 가능)" maxlength="60" autocomplete="off">
         <div id="foodSuggestions" class="suggestions-dropdown" style="display:none;"></div>
+      </div>
+      <div class="field narrow">
+        <label>섭취량(g)</label>
+        <input id="m-grams" type="number" min="0" step="1" placeholder="g">
       </div>
       <div class="field narrow">
         <label>칼로리</label>
@@ -521,7 +525,7 @@
       </div>
       <button class="btn small" id="addMealBtn">추가</button>
     </div>
-    <div class="hint-small" id="foodSearchHint" style="margin-top:8px;">식약처 데이터베이스에서 검색해 정확한 칼로리를 자동으로 채울 수 있어요.</div>
+    <div class="hint-small" id="foodSearchHint" style="margin-top:8px;">식약처 데이터베이스에서 검색한 뒤 섭취량(g)을 입력하면 칼로리가 자동으로 계산돼요. (기본값은 100g 기준 수치예요)</div>
     <ul class="entry-list" id="mealList"></ul>
     <div class="empty-hint" id="mealEmptyHint">이 날짜에 추가된 식사가 없어요.</div>
 
@@ -1056,18 +1060,36 @@
 
   // ---------- 식사 ----------
   const foodNameEl = document.getElementById('m-food');
+  const mealGramsEl = document.getElementById('m-grams');
   const mealCaloriesEl = document.getElementById('m-calories');
   const mealListEl = document.getElementById('mealList');
   const mealEmptyHintEl = document.getElementById('mealEmptyHint');
 
+  let selectedFoodKcalPer100g = null; // 검색해서 선택한 음식의 100g당 칼로리 (수동 입력 시 null)
+
+  function recalcCaloriesFromGrams(){
+    if(selectedFoodKcalPer100g === null) return; // 직접 입력한 음식은 자동 계산 대상 아님
+    const grams = parseFloat(mealGramsEl.value);
+    if(!grams && grams !== 0){ return; }
+    mealCaloriesEl.value = Math.round(selectedFoodKcalPer100g * grams / 100);
+  }
+
+  mealGramsEl.addEventListener('input', recalcCaloriesFromGrams);
+
+  // 음식 이름을 직접 수정하면 이전에 선택했던 100g당 칼로리 기준은 더 이상 유효하지 않으므로 해제
+  foodNameEl.addEventListener('input', () => { selectedFoodKcalPer100g = null; });
+
   document.getElementById('addMealBtn').addEventListener('click', () => {
     const name = foodNameEl.value.trim();
     const calories = parseFloat(mealCaloriesEl.value);
+    const grams = parseFloat(mealGramsEl.value) || null;
     if(!name || (!calories && calories !== 0)) return;
 
-    data.entries.push({ id:newId('m'), date:currentDate(), type:'meal', name, calories });
+    data.entries.push({ id:newId('m'), date:currentDate(), type:'meal', name, calories, grams });
     foodNameEl.value = '';
+    mealGramsEl.value = '';
     mealCaloriesEl.value = '';
+    selectedFoodKcalPer100g = null;
     foodNameEl.focus();
 
     saveData(null);
@@ -1075,7 +1097,7 @@
     renderLogTable();
     renderSummary();
   });
-  [foodNameEl, mealCaloriesEl].forEach(el => {
+  [foodNameEl, mealGramsEl, mealCaloriesEl].forEach(el => {
     el.addEventListener('keydown', (e) => { if(e.key === 'Enter') document.getElementById('addMealBtn').click(); });
   });
 
@@ -1089,6 +1111,12 @@
     foodSuggestionsEl.innerHTML = '';
   }
 
+  function parseGramsFromServingSize(servingSize){
+    if(!servingSize) return null;
+    const match = String(servingSize).match(/([\d.]+)\s*g/i);
+    return match ? parseFloat(match[1]) : null;
+  }
+
   function renderSuggestions(results){
     if(results.length === 0){
       foodSuggestionsEl.innerHTML = '<div class="suggestion-empty">검색 결과가 없어요. 직접 입력해 주세요.</div>';
@@ -1097,7 +1125,7 @@
     }
     foodSuggestionsEl.innerHTML = results.slice(0, 15).map((r, i) => `
       <div class="suggestion-item" data-idx="${i}">
-        <span class="s-name">${escapeHtml(r.name)}${r.servingSize ? ` <span style="color:var(--ink-soft);">(${escapeHtml(r.servingSize)} 기준)</span>` : ''}</span>
+        <span class="s-name">${escapeHtml(r.name)}${r.servingSize ? ` <span style="color:var(--ink-soft);">(${escapeHtml(r.servingSize)}당)</span>` : ''}</span>
         <span class="s-kcal">${r.kcal != null ? r.kcal + 'kcal' : '-'}</span>
       </div>
     `).join('');
@@ -1107,9 +1135,20 @@
         const idx = parseInt(el.dataset.idx, 10);
         const picked = results[idx];
         foodNameEl.value = picked.name;
-        if(picked.kcal != null) mealCaloriesEl.value = picked.kcal;
+
+        const baseGrams = parseGramsFromServingSize(picked.servingSize) || 100;
+        if(picked.kcal != null){
+          // "100g당 X kcal"으로 환산해서 기준값 저장 (기준량이 100g이 아닌 경우도 대비)
+          selectedFoodKcalPer100g = (picked.kcal / baseGrams) * 100;
+          mealGramsEl.value = baseGrams; // 일단 기준량으로 채워두고, 실제 섭취량으로 사용자가 수정
+          mealCaloriesEl.value = picked.kcal;
+        } else {
+          selectedFoodKcalPer100g = null;
+        }
+
         hideSuggestions();
-        mealCaloriesEl.focus();
+        mealGramsEl.focus();
+        mealGramsEl.select();
       });
     });
   }
@@ -1159,6 +1198,7 @@
       <li class="entry">
         <div class="entry-main">
           <div class="entry-name">${escapeHtml(m.name)}</div>
+          ${m.grams ? `<div class="entry-sub">${m.grams}g</div>` : ''}
         </div>
         <div class="entry-kcal">${m.calories}kcal</div>
         <button class="del-entry" data-id="${m.id}" aria-label="삭제">×</button>

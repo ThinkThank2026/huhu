@@ -448,7 +448,7 @@
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
   import {
-    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+    getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged
   } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js';
   import {
     getFirestore, doc, getDoc, setDoc
@@ -503,11 +503,17 @@
   document.getElementById('googleSignInBtn').addEventListener('click', async () => {
     const hint = document.getElementById('syncHint');
     try{
-      await signInWithPopup(auth, googleProvider);
-      showHint(hint, '로그인됐어요.', false);
+      await signInWithRedirect(auth, googleProvider);
+      // 이 시점 이후 페이지가 구글 로그인 화면으로 이동하므로 아래 코드는 보통 실행되지 않음
     }catch(e){
       showHint(hint, '로그인에 실패했어요. 다시 시도해 주세요.', true);
     }
+  });
+
+  // 리다이렉트 로그인 후 돌아왔을 때 결과 처리 (오류 확인용, 실제 로그인 상태는 onAuthStateChanged가 처리)
+  getRedirectResult(auth).catch((e) => {
+    const hint = document.getElementById('syncHint');
+    if(hint) showHint(hint, '로그인에 실패했어요. 다시 시도해 주세요.', true);
   });
 
   document.getElementById('signOutBtn').addEventListener('click', async () => {

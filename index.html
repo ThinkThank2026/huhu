@@ -261,6 +261,12 @@
     border-bottom:1px solid var(--line);
   }
   table.log-table tr:last-child td{ border-bottom:none; }
+  table.log-table tbody tr{
+    cursor:pointer;
+    transition:background 0.12s ease;
+  }
+  table.log-table tbody tr:hover{ background:var(--accent-soft); }
+  table.log-table tbody tr.selected-row{ background:var(--accent-soft); }
   .net-pos{ color:var(--warn); }
   .net-neg{ color:var(--accent); }
 
@@ -345,7 +351,7 @@
   </section>
 
   <!-- 오늘 기록 -->
-  <section class="card">
+  <section class="card" id="recordCard">
     <h2>기록</h2>
 
     <div class="date-row">
@@ -401,6 +407,7 @@
     <hr class="divider">
     <h3>최근 기록 (일별 요약)</h3>
     <div class="hint-small" style="margin-bottom:2px;">예상 변화는 그날 섭취 칼로리에서 기초대사량(좌식 기준)과 운동 소모량을 뺀 값을 7700kcal=1kg 기준으로 환산한 추정치예요. 실제 체중은 수분·소화 상태 등에 따라 다르게 나타날 수 있어요.</div>
+    <div class="hint-small" style="margin-bottom:8px;">행을 클릭하면 해당 날짜로 이동해서 수정할 수 있어요.</div>
     <table class="log-table" id="logTable" style="display:none;">
       <thead>
         <tr><th>날짜</th><th>섭취</th><th>운동소모</th><th>순 칼로리</th><th>체중</th><th>예상 변화</th></tr>
@@ -887,7 +894,7 @@
       }
 
       return `
-        <tr>
+        <tr data-date="${date}">
           <td>${date.slice(5)}</td>
           <td>${calories}</td>
           <td>${burned}</td>
@@ -897,6 +904,21 @@
         </tr>
       `;
     }).join('');
+
+    tbody.querySelectorAll('tr').forEach(row => {
+      if(row.dataset.date === currentDate()) row.classList.add('selected-row');
+      row.addEventListener('click', () => jumpToDate(row.dataset.date));
+    });
+  }
+
+  function jumpToDate(date){
+    dateEl.value = date;
+    loadWeightForDate();
+    renderMealList();
+    renderExerciseList();
+    renderSummary();
+    renderLogTable();
+    document.getElementById('recordCard').scrollIntoView({ behavior:'smooth', block:'start' });
   }
 
   // ---------- 차트 ----------

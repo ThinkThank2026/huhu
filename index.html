@@ -243,10 +243,11 @@
 
   .add-row-inline{
     display:flex;
+    flex-wrap:wrap;
     gap:8px;
     align-items:flex-end;
   }
-  .add-row-inline .field{ flex:1; }
+  .add-row-inline .field{ flex:1 1 140px; min-width:0; }
   .add-row-inline .field.narrow{ flex:0 0 96px; }
 
   .hint-small{
@@ -520,7 +521,7 @@
       </div>
       <button class="btn small" id="addMealBtn">추가</button>
     </div>
-    <div class="hint-small" id="foodSearchHint" style="margin-top:-6px;">식약처 데이터베이스에서 검색해 정확한 칼로리를 자동으로 채울 수 있어요.</div>
+    <div class="hint-small" id="foodSearchHint" style="margin-top:8px;">식약처 데이터베이스에서 검색해 정확한 칼로리를 자동으로 채울 수 있어요.</div>
     <ul class="entry-list" id="mealList"></ul>
     <div class="empty-hint" id="mealEmptyHint">이 날짜에 추가된 식사가 없어요.</div>
 
@@ -1096,8 +1097,8 @@
     }
     foodSuggestionsEl.innerHTML = results.slice(0, 15).map((r, i) => `
       <div class="suggestion-item" data-idx="${i}">
-        <span class="s-name">${escapeHtml(r.name)}</span>
-        <span class="s-kcal">${r.kcal}kcal</span>
+        <span class="s-name">${escapeHtml(r.name)}${r.servingSize ? ` <span style="color:var(--ink-soft);">(${escapeHtml(r.servingSize)} 기준)</span>` : ''}</span>
+        <span class="s-kcal">${r.kcal != null ? r.kcal + 'kcal' : '-'}</span>
       </div>
     `).join('');
     foodSuggestionsEl.style.display = 'block';
@@ -1106,7 +1107,7 @@
         const idx = parseInt(el.dataset.idx, 10);
         const picked = results[idx];
         foodNameEl.value = picked.name;
-        mealCaloriesEl.value = picked.kcal;
+        if(picked.kcal != null) mealCaloriesEl.value = picked.kcal;
         hideSuggestions();
         mealCaloriesEl.focus();
       });

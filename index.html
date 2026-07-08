@@ -289,6 +289,54 @@
     padding:8px 0 0;
   }
 
+  .suggestions-dropdown{
+    position:absolute;
+    top:100%;
+    left:0;
+    right:0;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:8px;
+    margin-top:4px;
+    max-height:220px;
+    overflow-y:auto;
+    z-index:30;
+    box-shadow:0 8px 20px rgba(0,0,0,0.10);
+  }
+  .suggestion-item{
+    padding:9px 12px;
+    font-size:12.5px;
+    cursor:pointer;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    border-bottom:1px solid var(--line);
+  }
+  .suggestion-item:last-child{ border-bottom:none; }
+  .suggestion-item:hover{ background:var(--accent-soft); }
+  .suggestion-item .s-name{
+    flex:1;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .suggestion-item .s-kcal{
+    color:var(--ink-soft);
+    flex:none;
+    font-size:11.5px;
+  }
+  .suggestion-empty{
+    padding:10px 12px;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .suggestion-loading{
+    padding:10px 12px;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+
   .summary-box{
     margin-top:18px;
     padding:14px 16px;
@@ -461,9 +509,10 @@
 
     <h3>🍽 식사 추가</h3>
     <div class="add-row-inline">
-      <div class="field">
+      <div class="field" id="foodFieldWrap" style="position:relative;">
         <label>음식 이름</label>
-        <input id="m-food" type="text" placeholder="예: 닭가슴살 샐러드" maxlength="60">
+        <input id="m-food" type="text" placeholder="예: 닭가슴살 샐러드 (검색해서 자동입력 가능)" maxlength="60" autocomplete="off">
+        <div id="foodSuggestions" class="suggestions-dropdown" style="display:none;"></div>
       </div>
       <div class="field narrow">
         <label>칼로리</label>
@@ -471,6 +520,7 @@
       </div>
       <button class="btn small" id="addMealBtn">추가</button>
     </div>
+    <div class="hint-small" id="foodSearchHint" style="margin-top:-6px;">식약처 데이터베이스에서 검색해 정확한 칼로리를 자동으로 채울 수 있어요.</div>
     <ul class="entry-list" id="mealList"></ul>
     <div class="empty-hint" id="mealEmptyHint">이 날짜에 추가된 식사가 없어요.</div>
 
@@ -1027,6 +1077,74 @@
   [foodNameEl, mealCaloriesEl].forEach(el => {
     el.addEventListener('keydown', (e) => { if(e.key === 'Enter') document.getElementById('addMealBtn').click(); });
   });
+
+  // ---------- 식약처 식품영양성분DB 검색 (자동완성) ----------
+  const foodSuggestionsEl = document.getElementById('foodSuggestions');
+  let foodSearchTimer = null;
+  let foodSearchSeq = 0; // 응답이 늦게 와서 최신 검색어를 덮어쓰는 것을 방지
+
+  function hideSuggestions(){
+    foodSuggestionsEl.style.display = 'none';
+    foodSuggestionsEl.innerHTML = '';
+  }
+
+  function renderSuggestions(results){
+    if(results.length === 0){
+      foodSuggestionsEl.innerHTML = '<div class="suggestion-empty">검색 결과가 없어요. 직접 입력해 주세요.</div>';
+      foodSuggestionsEl.style.display = 'block';
+      return;
+    }
+    foodSuggestionsEl.innerHTML = results.slice(0, 15).map((r, i) => `
+      <div class="suggestion-item" data-idx="${i}">
+        <span class="s-name">${escapeHtml(r.name)}</span>
+        <span class="s-kcal">${r.kcal}kcal</span>
+      </div>
+    `).join('');
+    foodSuggestionsEl.style.display = 'block';
+    foodSuggestionsEl.querySelectorAll('.suggestion-item').forEach((el) => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.idx, 10);
+        const picked = results[idx];
+        foodNameEl.value = picked.name;
+        mealCaloriesEl.value = picked.kcal;
+        hideSuggestions();
+        mealCaloriesEl.focus();
+      });
+    });
+  }
+
+  async function searchFood(query){
+    const seq = ++foodSearchSeq;
+    foodSuggestionsEl.innerHTML = '<div class="suggestion-loading">검색 중...</div>';
+    foodSuggestionsEl.style.display = 'block';
+    try{
+      const res = await fetch('/api/search-food?q=' + encodeURIComponent(query));
+      const data = await res.json();
+      if(seq !== foodSearchSeq) return; // 이미 더 최신 검색이 진행됨
+      if(!res.ok){
+        foodSuggestionsEl.innerHTML = `<div class="suggestion-empty">검색 중 문제가 발생했어요${data && data.error ? ' (' + data.error + ')' : ''}.</div>`;
+        return;
+      }
+      renderSuggestions(data.results || []);
+    }catch(e){
+      if(seq !== foodSearchSeq) return;
+      foodSuggestionsEl.innerHTML = '<div class="suggestion-empty">검색 서버에 연결할 수 없어요.</div>';
+      foodSuggestionsEl.style.display = 'block';
+    }
+  }
+
+  foodNameEl.addEventListener('input', () => {
+    clearTimeout(foodSearchTimer);
+    const q = foodNameEl.value.trim();
+    if(q.length < 2){ hideSuggestions(); return; }
+    foodSearchTimer = setTimeout(() => searchFood(q), 350);
+  });
+
+  document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('foodFieldWrap');
+    if(wrap && !wrap.contains(e.target)) hideSuggestions();
+  });
+
 
   function renderMealList(){
     const meals = data.entries.filter(e => e.type === 'meal' && e.date === currentDate());

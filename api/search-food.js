@@ -56,8 +56,8 @@ export default async function handler(req, res) {
       return;
     }
 
-    // data.go.kr 표준 응답 포맷: { response: { header: {...}, body: { items: { item: [...] } } } }
-    const header = data?.response?.header;
+    // 실제 응답 포맷: { header: {...}, body: { items: [...], totalCount, ... } } (response 래퍼 없음)
+    const header = data?.header;
     if (header && header.resultCode && header.resultCode !== '00') {
       res.status(502).json({
         error: '공공데이터포털 API 오류',
@@ -67,7 +67,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    let items = data?.response?.body?.items;
+    let items = data?.body?.items;
     if (!items) items = [];
     if (!Array.isArray(items)) items = [items]; // 결과가 1건이면 배열이 아니라 객체로 오는 경우가 있음
 
@@ -83,13 +83,13 @@ export default async function handler(req, res) {
     });
 
     // 칼로리 필드를 아직 못 찾은 경우를 대비해, 첫 번째 결과의 원본 필드를 함께 보내줌 (진단용)
-    const responsePayload = { results, _debugVersion: 'v3-items-array-fix' };
+    const responsePayload = { results };
     if (items.length > 0 && results[0] && results[0].kcal === null) {
       responsePayload.debugFirstItemRaw = items[0];
     }
     if (items.length === 0) {
       // 결과가 아예 없을 때: totalCount와 원본 응답 일부를 함께 보내 원인 파악을 돕는다
-      responsePayload.debugTotalCount = data?.response?.body?.totalCount ?? null;
+      responsePayload.debugTotalCount = data?.body?.totalCount ?? null;
       responsePayload.debugRawPreview = JSON.stringify(data).slice(0, 800);
     }
 

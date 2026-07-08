@@ -85,6 +85,11 @@ export default async function handler(req, res) {
     if (items.length > 0 && results[0] && results[0].kcal === null) {
       responsePayload.debugFirstItemRaw = items[0];
     }
+    if (items.length === 0) {
+      // 결과가 아예 없을 때: totalCount와 원본 응답 일부를 함께 보내 원인 파악을 돕는다
+      responsePayload.debugTotalCount = data?.response?.body?.totalCount ?? null;
+      responsePayload.debugRawPreview = JSON.stringify(data).slice(0, 800);
+    }
 
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
     res.status(200).json(responsePayload);

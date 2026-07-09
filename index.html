@@ -570,7 +570,7 @@
     <div class="hint-small" style="margin-bottom:8px;">행을 클릭하면 해당 날짜로 이동해서 수정할 수 있어요.</div>
     <table class="log-table" id="logTable" style="display:none;">
       <thead>
-        <tr><th>날짜</th><th>섭취</th><th>운동소모</th><th>순 칼로리</th><th>체중</th><th>예상 변화</th></tr>
+        <tr><th>날짜</th><th>섭취</th><th>운동소모</th><th>순 칼로리</th><th>체중</th><th>전일 대비</th><th>예상 변화</th></tr>
       </thead>
       <tbody id="logTableBody"></tbody>
     </table>
@@ -1351,6 +1351,17 @@
     return weightEntries[0].weight;
   }
 
+  function getExactWeightOn(date){
+    const entry = data.entries.find(e => e.type === 'weight' && e.date === date);
+    return entry ? entry.weight : null;
+  }
+
+  function getYesterdayStr(date){
+    const d = new Date(date + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
   function getDayTotals(date){
     const dayEntries = data.entries.filter(e => e.date === date);
     const calories = dayEntries.filter(e => e.type === 'meal').reduce((s,e) => s + e.calories, 0);
@@ -1424,6 +1435,16 @@
         estCellHtml = `<span class="${estClass}">${estChange > 0 ? '+' : ''}${estChange.toFixed(2)}kg</span>`;
       }
 
+      let vsYesterdayHtml = '—';
+      if(weight != null){
+        const yWeight = getExactWeightOn(getYesterdayStr(date));
+        if(yWeight != null){
+          const diff = weight - yWeight;
+          const diffClass = diff > 0 ? 'net-pos' : (diff < 0 ? 'net-neg' : '');
+          vsYesterdayHtml = `<span class="${diffClass}">${diff > 0 ? '+' : ''}${diff.toFixed(1)}kg</span>`;
+        }
+      }
+
       return `
         <tr data-date="${date}">
           <td>${date.slice(5)}</td>
@@ -1431,6 +1452,7 @@
           <td>${burned}</td>
           <td class="${netClass}">${net >= 0 ? '+' : ''}${net}</td>
           <td>${weight ? `<span class="weight-cell"><span class="dot-mask">●●.●kg</span><span class="dot-real">${weight}kg</span></span>` : '—'}</td>
+          <td>${vsYesterdayHtml}</td>
           <td>${estCellHtml}</td>
         </tr>
       `;

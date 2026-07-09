@@ -385,15 +385,23 @@
   .net-neg{ color:var(--accent); }
 
   .weight-cell{
-    display:inline-block;
-    filter:blur(5px);
+    display:inline-flex;
+    align-items:center;
     cursor:pointer;
     user-select:none;
-    transition:filter 0.15s ease;
     -webkit-tap-highlight-color:transparent;
+    font-variant-numeric:tabular-nums;
   }
-  .weight-cell:hover{ filter:blur(3px); }
-  .weight-cell.revealed{ filter:none; }
+  .weight-cell .dot-real{ display:none; }
+  .weight-cell .dot-mask{
+    display:inline;
+    letter-spacing:1px;
+    color:var(--ink-soft);
+    transition:color 0.15s ease;
+  }
+  .weight-cell:hover .dot-mask{ color:var(--ink); }
+  .weight-cell.revealed .dot-real{ display:inline; }
+  .weight-cell.revealed .dot-mask{ display:none; }
 
   /* 차트 */
   .chart-wrap svg{ width:100%; height:auto; overflow:visible; }
@@ -1422,7 +1430,7 @@
           <td>${calories}</td>
           <td>${burned}</td>
           <td class="${netClass}">${net >= 0 ? '+' : ''}${net}</td>
-          <td>${weight ? `<span class="weight-cell">${weight}kg</span>` : '—'}</td>
+          <td>${weight ? `<span class="weight-cell"><span class="dot-mask">●●.●kg</span><span class="dot-real">${weight}kg</span></span>` : '—'}</td>
           <td>${estCellHtml}</td>
         </tr>
       `;

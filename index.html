@@ -1725,40 +1725,50 @@
 
     resultEl.querySelectorAll('.plan-add-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const dayIdx = parseInt(btn.dataset.day, 10);
-        const mealIdx = parseInt(btn.dataset.meal, 10);
-        const day = currentPlanDays[dayIdx];
-        const m = day.meals[mealIdx];
-        if(!m.item) return;
+        try{
+          const dayIdx = parseInt(btn.dataset.day, 10);
+          const mealIdx = parseInt(btn.dataset.meal, 10);
+          const day = currentPlanDays && currentPlanDays[dayIdx];
+          const m = day && day.meals[mealIdx];
+          if(!day || !m || !m.item){
+            showError('추천 항목 정보를 찾을 수 없어요. 다시 추천받아 주세요.');
+            return;
+          }
 
-        const isAdded = !!(m.addedEntryId && data.entries.some(e => e.id === m.addedEntryId));
+          const isAdded = !!(m.addedEntryId && data.entries.some(e => e.id === m.addedEntryId));
 
-        if(isAdded){
-          // 취소: 기록에서 제거
-          data.entries = data.entries.filter(e => e.id !== m.addedEntryId);
-          m.addedEntryId = null;
-        } else {
-          // 추가
-          const entry = {
-            id: newId('m'),
-            date: day.date,
-            type: 'meal',
-            name: `${m.item.name} (${m.label})`,
-            calories: m.item.kcal,
-            grams: m.item.grams,
-          };
-          data.entries.push(entry);
-          m.addedEntryId = entry.id;
-        }
+          if(isAdded){
+            // 취소: 기록에서 제거
+            data.entries = data.entries.filter(e => e.id !== m.addedEntryId);
+            m.addedEntryId = null;
+          } else {
+            // 추가
+            const entry = {
+              id: newId('m'),
+              date: day.date,
+              type: 'meal',
+              name: `${m.item.name} (${m.label})`,
+              calories: m.item.kcal,
+              grams: m.item.grams,
+            };
+            data.entries.push(entry);
+            m.addedEntryId = entry.id;
 
-        saveData(null);
-        renderMealPlan();
+            // 방금 추가한 항목이 실제로 들어갔는지 즉시 검증 (조용히 실패하는 것을 방지)
+            const verify = data.entries.some(e => e.id === entry.id);
+            if(!verify){
+              showError('기록 추가에 실패했어요. 다시 시도해 주세요.');
+              return;
+            }
+          }
 
-        // 지금 보고 있는 날짜와 같으면 기록 화면도 즉시 갱신
-        if(day.date === currentDate()){
-          renderMealList();
-          renderLogTable();
-          renderSummary();
+          saveData(null);
+          renderMealPlan();
+
+          // 추가/취소한 날짜로 기록 화면을 직접 이동시켜서 실제로 반영됐는지 바로 확인할 수 있게 함
+          jumpToDate(day.date);
+        }catch(e){
+          showError('처리 중 오류가 발생했어요: ' + (e.message || e));
         }
       });
     });

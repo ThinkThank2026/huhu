@@ -426,6 +426,54 @@
     line-height:1.6;
     margin-top:24px;
   }
+
+  .plan-day{
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px 16px;
+    margin-bottom:10px;
+  }
+  .plan-day-title{
+    font-size:12.5px;
+    font-weight:600;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    color:var(--ink);
+  }
+  .plan-day-total{
+    color:var(--ink-soft);
+    font-weight:400;
+  }
+  .plan-meal-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:7px 0;
+    border-bottom:1px dashed var(--line);
+    font-size:12.5px;
+  }
+  .plan-meal-row:last-child{ border-bottom:none; }
+  .plan-meal-label{
+    flex:none;
+    width:34px;
+    color:var(--ink-soft);
+    font-size:11px;
+  }
+  .plan-meal-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .plan-meal-kcal{ flex:none; color:var(--ink-soft); font-size:11.5px; }
+  .plan-add-btn{
+    flex:none;
+    background:none;
+    border:1px solid var(--line);
+    border-radius:6px;
+    color:var(--accent);
+    font-size:11px;
+    padding:3px 8px;
+    cursor:pointer;
+  }
+  .plan-add-btn:hover{ background:var(--accent-soft); }
+  .plan-add-btn:disabled{ color:var(--ink-soft); border-color:var(--line); cursor:default; }
 </style>
 </head>
 <body>
@@ -583,6 +631,17 @@
     <div class="chart-wrap" id="chartWrap">
       <div class="chart-empty">몸무게를 기록하면 변화 그래프가 여기 나타나요.</div>
     </div>
+  </section>
+
+  <!-- 일주일 식단 추천 -->
+  <section class="card">
+    <h2>이번 주 식단 추천</h2>
+    <div class="hint-small" style="margin-bottom:14px;">목표 칼로리에 맞춰 아침·점심·저녁을 추천해드려요. 식약처 데이터베이스 기반이고, AI를 쓰지 않는 규칙 기반 추천이라 결과가 다소 단순할 수 있어요.</div>
+    <div class="btn-row" style="margin-top:0;">
+      <button class="btn" id="generateMealPlanBtn">이번 주 추천받기</button>
+    </div>
+    <div id="mealPlanStatus" class="hint-small" style="margin-top:10px;"></div>
+    <div id="mealPlanResult" style="margin-top:16px;"></div>
   </section>
 
   <div class="disclaimer">
@@ -1527,6 +1586,148 @@
     div.textContent = str;
     return div.innerHTML;
   }
+
+  // ---------- 일주일 식단 추천 (규칙 기반, AI 미사용) ----------
+  const MEAL_RATIOS = [
+    { label: '아침', ratio: 0.25, categories: ['죽 및 스프류', '빵 및 과자류', '밥류'] },
+    { label: '점심', ratio: 0.35, categories: ['찌개 및 전골류', '국 및 탕류', '밥류', '구이류', '볶음류', '면 및 만두류'] },
+    { label: '저녁', ratio: 0.40, categories: ['찌개 및 전골류', '국 및 탕류', '구이류', '볶음류', '조림류', '찜류'] },
+  ];
+
+  function pickRandom(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+
+  function addDaysToStr(baseStr, n){
+    const d = new Date(baseStr + 'T00:00:00');
+    d.setDate(d.getDate() + n);
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  async function fetchByCategory(category){
+    try{
+      const res = await fetch('/api/search-food?category=' + encodeURIComponent(category));
+      if(!res.ok) return [];
+      const json = await res.json();
+      return (json.results || []).filter(r => r.kcal != null && r.name && !r.name.includes('확인 필요'));
+    }catch(e){
+      return [];
+    }
+  }
+
+  async function pickMealItem(meal, targetKcal, usedNames){
+    const shuffledCategories = [...meal.categories].sort(() => Math.random() - 0.5);
+    for(const category of shuffledCategories){
+      const candidates = await fetchByCategory(category);
+      const fresh = candidates.filter(c => !usedNames.has(c.name));
+      const pool = fresh.length > 0 ? fresh : candidates; // 다 겹치면 중복 허용해서라도 채움
+      if(pool.length > 0){
+        const picked = pickRandom(pool);
+        const grams = Math.min(800, Math.max(30, Math.round((targetKcal / picked.kcal) * 100)));
+        const actualKcal = Math.round(picked.kcal * grams / 100);
+        usedNames.add(picked.name);
+        return { name: picked.name, grams, kcal: actualKcal, category };
+      }
+    }
+    return null; // 이 끼니는 추천 실패 (사용자가 직접 채워야 함)
+  }
+
+  async function generateMealPlan(){
+    const btn = document.getElementById('generateMealPlanBtn');
+    const statusEl = document.getElementById('mealPlanStatus');
+    const resultEl = document.getElementById('mealPlanResult');
+
+    if(!data.goal.recommendedCalories){
+      statusEl.textContent = '먼저 프로필과 목표(희망 몸무게·목표 월)를 저장해서 목표 칼로리를 계산해 주세요.';
+      return;
+    }
+
+    btn.disabled = true;
+    resultEl.innerHTML = '';
+    const usedNames = new Set();
+    const dailyTarget = data.goal.recommendedCalories;
+    const startDate = todayStr();
+    const planDays = [];
+
+    for(let i = 0; i < 7; i++){
+      const date = addDaysToStr(startDate, i);
+      statusEl.textContent = `${i+1}/7일차 추천 준비 중...`;
+      const meals = [];
+      for(const meal of MEAL_RATIOS){
+        const targetKcal = Math.round(dailyTarget * meal.ratio);
+        const picked = await pickMealItem(meal, targetKcal, usedNames);
+        meals.push({ label: meal.label, targetKcal, item: picked });
+      }
+      planDays.push({ date, meals });
+    }
+
+    statusEl.textContent = '';
+    btn.disabled = false;
+    renderMealPlan(planDays);
+  }
+
+  function renderMealPlan(planDays){
+    const resultEl = document.getElementById('mealPlanResult');
+    resultEl.innerHTML = planDays.map((day, dayIdx) => {
+      const dayTotal = day.meals.reduce((s, m) => s + (m.item ? m.item.kcal : 0), 0);
+      const dateLabel = new Date(day.date + 'T00:00:00').toLocaleDateString('ko-KR', { month:'numeric', day:'numeric', weekday:'short' });
+      const rows = day.meals.map((m, mealIdx) => {
+        if(!m.item){
+          return `
+            <div class="plan-meal-row">
+              <span class="plan-meal-label">${m.label}</span>
+              <span class="plan-meal-name" style="color:var(--ink-soft);">추천할 항목을 찾지 못했어요</span>
+            </div>
+          `;
+        }
+        return `
+          <div class="plan-meal-row">
+            <span class="plan-meal-label">${m.label}</span>
+            <span class="plan-meal-name">${escapeHtml(m.item.name)} <span style="color:var(--ink-soft);">(약 ${m.item.grams}g)</span></span>
+            <span class="plan-meal-kcal">${m.item.kcal}kcal</span>
+            <button class="plan-add-btn" data-day="${dayIdx}" data-meal="${mealIdx}">+ 기록에 추가</button>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="plan-day">
+          <div class="plan-day-title"><span>${dateLabel}</span><span class="plan-day-total">총 ${dayTotal}kcal</span></div>
+          ${rows}
+        </div>
+      `;
+    }).join('');
+
+    resultEl.querySelectorAll('.plan-add-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const dayIdx = parseInt(btn.dataset.day, 10);
+        const mealIdx = parseInt(btn.dataset.meal, 10);
+        const day = planDays[dayIdx];
+        const m = day.meals[mealIdx];
+        if(!m.item) return;
+
+        data.entries.push({
+          id: newId('m'),
+          date: day.date,
+          type: 'meal',
+          name: `${m.item.name} (${m.label})`,
+          calories: m.item.kcal,
+          grams: m.item.grams,
+        });
+        saveData(null);
+
+        btn.textContent = '추가됨';
+        btn.disabled = true;
+
+        // 지금 보고 있는 날짜와 같으면 기록 화면도 즉시 갱신
+        if(day.date === currentDate()){
+          renderMealList();
+          renderLogTable();
+          renderSummary();
+        }
+      });
+    });
+  }
+
+  document.getElementById('generateMealPlanBtn').addEventListener('click', generateMealPlan);
 
   // ---------- 초기화 ----------
   function renderAll(){

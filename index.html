@@ -474,6 +474,11 @@
   }
   .plan-add-btn:hover{ background:var(--accent-soft); }
   .plan-add-btn:disabled{ color:var(--ink-soft); border-color:var(--line); cursor:default; }
+  .plan-add-btn.added{
+    color:var(--ink-soft);
+    background:var(--bg);
+  }
+  .plan-add-btn.added:hover{ color:#C0453C; border-color:#C0453C; background:transparent; }
 </style>
 </head>
 <body>
@@ -1324,6 +1329,7 @@
         renderMealList();
         renderLogTable();
         renderSummary();
+        syncMealPlanButtons();
       });
     });
   }
@@ -1630,6 +1636,8 @@
     return null; // 이 끼니는 추천 실패 (사용자가 직접 채워야 함)
   }
 
+  let currentPlanDays = null; // 마지막으로 생성된 추천 결과 (버튼 상태 동기화를 위해 모듈 범위에 보관)
+
   async function generateMealPlan(){
     const btn = document.getElementById('generateMealPlanBtn');
     const statusEl = document.getElementById('mealPlanStatus');
@@ -1654,19 +1662,37 @@
       for(const meal of MEAL_RATIOS){
         const targetKcal = Math.round(dailyTarget * meal.ratio);
         const picked = await pickMealItem(meal, targetKcal, usedNames);
-        meals.push({ label: meal.label, targetKcal, item: picked });
+        meals.push({ label: meal.label, targetKcal, item: picked, addedEntryId: null });
       }
       planDays.push({ date, meals });
     }
 
     statusEl.textContent = '';
     btn.disabled = false;
-    renderMealPlan(planDays);
+    currentPlanDays = planDays;
+    renderMealPlan();
   }
 
-  function renderMealPlan(planDays){
+  // 추천 카드가 화면에 떠 있다면, 실제 기록(data.entries) 기준으로 버튼 상태를 다시 맞춤
+  // (기록 화면에서 직접 삭제했을 때도 이 함수를 호출해서 동기화함)
+  function syncMealPlanButtons(){
+    if(!currentPlanDays) return;
+    let changed = false;
+    currentPlanDays.forEach(day => {
+      day.meals.forEach(m => {
+        if(m.addedEntryId && !data.entries.some(e => e.id === m.addedEntryId)){
+          m.addedEntryId = null; // 기록 화면 등 다른 곳에서 삭제된 경우
+          changed = true;
+        }
+      });
+    });
+    renderMealPlan();
+  }
+
+  function renderMealPlan(){
+    if(!currentPlanDays) return;
     const resultEl = document.getElementById('mealPlanResult');
-    resultEl.innerHTML = planDays.map((day, dayIdx) => {
+    resultEl.innerHTML = currentPlanDays.map((day, dayIdx) => {
       const dayTotal = day.meals.reduce((s, m) => s + (m.item ? m.item.kcal : 0), 0);
       const dateLabel = new Date(day.date + 'T00:00:00').toLocaleDateString('ko-KR', { month:'numeric', day:'numeric', weekday:'short' });
       const rows = day.meals.map((m, mealIdx) => {
@@ -1678,12 +1704,13 @@
             </div>
           `;
         }
+        const isAdded = !!(m.addedEntryId && data.entries.some(e => e.id === m.addedEntryId));
         return `
           <div class="plan-meal-row">
             <span class="plan-meal-label">${m.label}</span>
             <span class="plan-meal-name">${escapeHtml(m.item.name)} <span style="color:var(--ink-soft);">(약 ${m.item.grams}g)</span></span>
             <span class="plan-meal-kcal">${m.item.kcal}kcal</span>
-            <button class="plan-add-btn" data-day="${dayIdx}" data-meal="${mealIdx}">+ 기록에 추가</button>
+            <button class="plan-add-btn${isAdded ? ' added' : ''}" data-day="${dayIdx}" data-meal="${mealIdx}">${isAdded ? '✓ 추가됨 (취소)' : '+ 기록에 추가'}</button>
           </div>
         `;
       }).join('');
@@ -1700,22 +1727,32 @@
       btn.addEventListener('click', () => {
         const dayIdx = parseInt(btn.dataset.day, 10);
         const mealIdx = parseInt(btn.dataset.meal, 10);
-        const day = planDays[dayIdx];
+        const day = currentPlanDays[dayIdx];
         const m = day.meals[mealIdx];
         if(!m.item) return;
 
-        data.entries.push({
-          id: newId('m'),
-          date: day.date,
-          type: 'meal',
-          name: `${m.item.name} (${m.label})`,
-          calories: m.item.kcal,
-          grams: m.item.grams,
-        });
-        saveData(null);
+        const isAdded = !!(m.addedEntryId && data.entries.some(e => e.id === m.addedEntryId));
 
-        btn.textContent = '추가됨';
-        btn.disabled = true;
+        if(isAdded){
+          // 취소: 기록에서 제거
+          data.entries = data.entries.filter(e => e.id !== m.addedEntryId);
+          m.addedEntryId = null;
+        } else {
+          // 추가
+          const entry = {
+            id: newId('m'),
+            date: day.date,
+            type: 'meal',
+            name: `${m.item.name} (${m.label})`,
+            calories: m.item.kcal,
+            grams: m.item.grams,
+          };
+          data.entries.push(entry);
+          m.addedEntryId = entry.id;
+        }
+
+        saveData(null);
+        renderMealPlan();
 
         // 지금 보고 있는 날짜와 같으면 기록 화면도 즉시 갱신
         if(day.date === currentDate()){

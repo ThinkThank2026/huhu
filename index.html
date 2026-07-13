@@ -403,6 +403,30 @@
   .weight-cell.revealed .dot-real{ display:inline; }
   .weight-cell.revealed .dot-mask{ display:none; }
 
+  .toggle-weight-btn{
+    background:none;
+    border:none;
+    padding:0;
+    margin-left:2px;
+    cursor:pointer;
+    opacity:0.5;
+    transition:opacity 0.15s ease;
+    vertical-align:middle;
+    display:inline-flex;
+    align-items:center;
+  }
+  .toggle-weight-btn:hover{ opacity:0.9; }
+  .toggle-weight-btn.active{ opacity:0.9; }
+  .toggle-weight-btn svg{
+    width:13px;
+    height:13px;
+    flex:none;
+  }
+  .toggle-weight-btn .icon-eye-open{ display:block; }
+  .toggle-weight-btn .icon-eye-closed{ display:none; }
+  .toggle-weight-btn.active .icon-eye-open{ display:none; }
+  .toggle-weight-btn.active .icon-eye-closed{ display:block; }
+
   /* 차트 */
   .chart-wrap svg{ width:100%; height:auto; overflow:visible; }
   .chart-empty{
@@ -623,7 +647,7 @@
     <div class="hint-small" style="margin-bottom:8px;">행을 클릭하면 해당 날짜로 이동해서 수정할 수 있어요.</div>
     <table class="log-table" id="logTable" style="display:none;">
       <thead>
-        <tr><th>날짜</th><th>섭취</th><th>운동소모</th><th>순 칼로리</th><th>체중</th><th>전일 대비</th><th>예상 변화</th></tr>
+        <tr><th>날짜</th><th>섭취</th><th>운동소모</th><th>순 칼로리</th><th>체중 <button id="toggleAllWeightsBtn" class="toggle-weight-btn" type="button" aria-label="체중 전체 보기/가리기"><svg class="icon-eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg><svg class="icon-eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.5 18.5 0 0 1 4.22-5.19M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button></th><th>전일 대비</th><th>예상 변화</th></tr>
       </thead>
       <tbody id="logTableBody"></tbody>
     </table>
@@ -1456,6 +1480,8 @@
   }
 
   // ---------- 일별 히스토리 테이블 ----------
+  let allWeightsRevealed = false; // 체중 전체 보기/가리기 토글 상태
+
   function renderLogTable(){
     const tbody = document.getElementById('logTableBody');
     const table = document.getElementById('logTable');
@@ -1516,7 +1542,7 @@
           <td>${calories}</td>
           <td>${burned}</td>
           <td class="${netClass}">${net >= 0 ? '+' : ''}${net}</td>
-          <td>${weight ? `<span class="weight-cell"><span class="dot-mask">●●.●kg</span><span class="dot-real">${weight}kg</span></span>` : '—'}</td>
+          <td>${weight ? `<span class="weight-cell${allWeightsRevealed ? ' revealed' : ''}"><span class="dot-mask">●●.●kg</span><span class="dot-real">${weight}kg</span></span>` : '—'}</td>
           <td>${vsYesterdayHtml}</td>
           <td>${estCellHtml}</td>
         </tr>
@@ -1534,6 +1560,17 @@
         cell.classList.toggle('revealed');
       });
     });
+
+    const toggleAllBtn = document.getElementById('toggleAllWeightsBtn');
+    if(toggleAllBtn){
+      toggleAllBtn.classList.toggle('active', allWeightsRevealed);
+      toggleAllBtn.setAttribute('aria-label', allWeightsRevealed ? '체중 전체 가리기' : '체중 전체 보기');
+      toggleAllBtn.onclick = (e) => {
+        e.stopPropagation();
+        allWeightsRevealed = !allWeightsRevealed;
+        renderLogTable();
+      };
+    }
   }
 
   function jumpToDate(date){

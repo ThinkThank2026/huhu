@@ -375,6 +375,11 @@
     border-bottom:1px solid var(--line);
   }
   table.log-table tr:last-child td{ border-bottom:none; }
+  table.log-table th:nth-child(5),
+  table.log-table td:nth-child(5){
+    width:70px;
+    min-width:70px;
+  }
   table.log-table tbody tr{
     cursor:pointer;
     transition:background 0.12s ease;
@@ -393,15 +398,19 @@
     font-variant-numeric:tabular-nums;
   }
   .weight-cell .dot-real{ display:none; }
+  .weight-cell .dot-mask,
+  .weight-cell .dot-real{
+    display:inline-block;
+    min-width:52px;
+  }
   .weight-cell .dot-mask{
-    display:inline;
     letter-spacing:1px;
     color:var(--ink-soft);
     transition:color 0.15s ease;
   }
-  .weight-cell:hover .dot-mask{ color:var(--ink); }
-  .weight-cell.revealed .dot-real{ display:inline; }
+  .weight-cell.revealed .dot-real{ display:inline-block; }
   .weight-cell.revealed .dot-mask{ display:none; }
+  .weight-cell:hover .dot-mask{ color:var(--ink); }
 
   .toggle-weight-btn{
     background:none;

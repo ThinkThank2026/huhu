@@ -651,8 +651,11 @@
     <div class="summary-box" id="summaryBox"></div>
 
     <hr class="divider">
-    <h3>최근 기록 (일별 요약)</h3>
-    <div class="hint-small" style="margin-bottom:2px;">예상 변화는 그날 섭취 칼로리에서 기초대사량(좌식 기준)과 운동 소모량을 뺀 값을 7700kcal=1kg 기준으로 환산한 추정치예요. 실제 체중은 수분·소화 상태 등에 따라 다르게 나타날 수 있어요.</div>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2px;">
+      <h3 style="margin:0;">일별 요약</h3>
+      <select id="logMonthSelect" style="font-family:'Inter', sans-serif; font-size:12px; padding:5px 8px; border:1px solid var(--line); border-radius:7px; background:var(--bg); color:var(--ink);"></select>
+    </div>
+    <div class="hint-small" style="margin-bottom:2px; margin-top:8px;">예상 변화는 그날 섭취 칼로리에서 기초대사량(좌식 기준)과 운동 소모량을 뺀 값을 7700kcal=1kg 기준으로 환산한 추정치예요. 실제 체중은 수분·소화 상태 등에 따라 다르게 나타날 수 있어요.</div>
     <div class="hint-small" style="margin-bottom:8px;">행을 클릭하면 해당 날짜로 이동해서 수정할 수 있어요.</div>
     <table class="log-table" id="logTable" style="display:none;">
       <thead>
@@ -1490,17 +1493,52 @@
 
   // ---------- 일별 히스토리 테이블 ----------
   let allWeightsRevealed = false; // 체중 전체 보기/가리기 토글 상태
+  let selectedLogMonth = null; // 'YYYY-MM' 형식, 최근 기록 표에서 보고 있는 월
+
+  function currentMonthStr(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  }
+
+  function populateLogMonthSelect(){
+    const select = document.getElementById('logMonthSelect');
+    if(!select) return;
+
+    const now = new Date();
+    const options = [];
+    for(let i = 0; i < 12; i++){
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      const label = d.getFullYear() + '년 ' + (d.getMonth()+1) + '월' + (i === 0 ? ' (이번 달)' : '');
+      options.push({ value, label });
+    }
+
+    select.innerHTML = options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+
+    if(!selectedLogMonth) selectedLogMonth = currentMonthStr();
+    select.value = selectedLogMonth;
+
+    select.onchange = () => {
+      selectedLogMonth = select.value;
+      renderLogTable();
+    };
+  }
 
   function renderLogTable(){
     const tbody = document.getElementById('logTableBody');
     const table = document.getElementById('logTable');
     const emptyHint = document.getElementById('logEmptyHint');
 
-    const dates = [...new Set(data.entries.map(e => e.date))].sort((a,b) => b.localeCompare(a)).slice(0, 14);
+    if(!selectedLogMonth) selectedLogMonth = currentMonthStr();
+
+    const dates = [...new Set(data.entries.map(e => e.date))]
+      .filter(d => d.startsWith(selectedLogMonth))
+      .sort((a,b) => b.localeCompare(a));
 
     if(dates.length === 0){
       table.style.display = 'none';
       emptyHint.style.display = 'block';
+      emptyHint.textContent = '이 달에는 기록이 없어요.';
       return;
     }
     table.style.display = 'table';
@@ -1831,6 +1869,7 @@
     renderMealList();
     renderExerciseList();
     renderSummary();
+    populateLogMonthSelect();
     renderLogTable();
     renderChart();
   }
